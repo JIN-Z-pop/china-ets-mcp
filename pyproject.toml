@@ -17,6 +17,7 @@ dev = ["pytest"]
 
 [project.scripts]
 china-ets-mcp-lite = "china_ets_mcp.server_lite:main"
+china-ets-dashboard = "china_ets_mcp.cli:main"
 
 [build-system]
 requires = ["hatchling"]
