@@ -370,13 +370,14 @@ function switchLang(lang) {
   const t = i18n[lang];
   document.getElementById('main-title').textContent = t.title;
   document.getElementById('sub-title').textContent = t.subtitle;
-  localStorage.setItem('ets-dashboard-lang', lang);
   renderCards(lang);
   renderCharts(lang);
+  try { localStorage.setItem('ets-dashboard-lang', lang); } catch(e) {}
 }
 
-// Initialize with saved preference or default
-const savedLang = localStorage.getItem('ets-dashboard-lang') || 'cn';
+// Initialize with saved preference or default (localStorage may throw on file://)
+let savedLang = 'cn';
+try { savedLang = localStorage.getItem('ets-dashboard-lang') || 'cn'; } catch(e) {}
 document.getElementById('lang-select').value = savedLang;
 switchLang(savedLang);
 </script>
