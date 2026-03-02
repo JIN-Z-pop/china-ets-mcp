@@ -231,7 +231,9 @@ function renderCards(lang) {
   });
 }
 
-function renderCharts(lang) {
+let chartsInitialized = false;
+
+function initCharts(lang) {
   const t = i18n[lang];
 
   // 1. CEA Closing Price
@@ -362,6 +364,60 @@ function renderCharts(lang) {
     }, plotlyConfig);
   } else {
     document.getElementById('ccer-price-chart').innerHTML = `<p style="text-align:center;padding:40px;color:#718096;">${t.noCcer}</p>`;
+  }
+
+  chartsInitialized = true;
+}
+
+function updateChartLabels(lang) {
+  const t = i18n[lang];
+
+  // CEA Price — title + y-axis only
+  if (document.getElementById('cea-price-chart').data) {
+    Plotly.relayout('cea-price-chart', {
+      'title.text': t.ceaPriceTrend,
+      'yaxis.title.text': t.priceUnit,
+    });
+  }
+
+  // Candlestick
+  if (document.getElementById('cea-candlestick-chart').data) {
+    Plotly.relayout('cea-candlestick-chart', {
+      'title.text': t.ceaCandlestick,
+      'yaxis.title': t.priceUnit,
+      'yaxis2.title': t.volumeUnit,
+    });
+  }
+
+  // Box plot
+  if (document.getElementById('cea-annual-box').data) {
+    Plotly.relayout('cea-annual-box', {
+      'title.text': t.annualDistribution,
+      'yaxis.title': t.closingPrice,
+    });
+  }
+
+  // Heatmap — month labels need restyle
+  if (document.getElementById('cea-monthly-heatmap').data) {
+    Plotly.relayout('cea-monthly-heatmap', { 'title.text': t.monthlyHeatmap });
+    Plotly.restyle('cea-monthly-heatmap', { x: [t.months] }, [0]);
+    Plotly.relayout('cea-monthly-heatmap', { 'colorbar.title.text': t.volumeWan });
+  }
+
+  // CCER Price
+  if (document.getElementById('ccer-price-chart').data) {
+    Plotly.relayout('ccer-price-chart', {
+      'title.text': t.ccerPriceTrend,
+      'yaxis.title': t.priceUnit,
+    });
+  }
+}
+
+function renderCharts(lang) {
+  if (!chartsInitialized) {
+    initCharts(lang);
+  } else {
+    updateChartLabels(lang);
   }
 }
 
