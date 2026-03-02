@@ -40,7 +40,21 @@ mkdir -p data
 unzip data.db.zip -d data/
 ```
 
-### 3. Configure MCP
+### 3. View Dashboard (No MCP Required)
+
+```bash
+china-ets-dashboard
+```
+
+Or without installing:
+
+```bash
+python -m china_ets_mcp.cli
+```
+
+This generates an interactive HTML dashboard and opens it in your browser.
+
+### 4. Configure MCP (Optional)
 
 Add to your `claude_desktop_config.json`:
 
@@ -70,7 +84,7 @@ Or use the CLI entry point:
 }
 ```
 
-### 4. Use
+### 5. Use with Claude
 
 Once configured, you can ask Claude:
 
