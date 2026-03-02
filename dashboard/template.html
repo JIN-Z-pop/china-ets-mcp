@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>China ETS Dashboard</title>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js" integrity="sha384-Hl48Kq2HifOWdXEjMsKo6qxqvRLTYqIGbvlENBmkHAxZKIGCXv43H6W1jA671RzC" crossorigin="anonymous"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', sans-serif; background: #0f1923; color: #e0e0e0; }
+.header { text-align: center; padding: 24px 20px; background: linear-gradient(135deg, #1a2332, #2d3748); position: relative; }
+.header h1 { font-size: 1.8em; color: #63b3ed; margin-bottom: 6px; }
+.header p { color: #a0aec0; font-size: 0.9em; }
+.lang-switcher { position: absolute; top: 20px; right: 24px; }
+.lang-switcher select {
+  background: #2d3748; color: #e0e0e0; border: 1px solid #4a5568; border-radius: 6px;
+  padding: 6px 12px; font-size: 0.85em; cursor: pointer; outline: none;
+}
+.lang-switcher select:hover { border-color: #63b3ed; }
+.cards { display: flex; gap: 15px; padding: 20px; flex-wrap: wrap; justify-content: center; }
+.card { background: #1a2332; border-radius: 10px; padding: 20px 24px; min-width: 200px; text-align: center; border: 1px solid #2d3748; flex: 1; max-width: 280px; }
+.card .value { font-size: 1.8em; color: #48bb78; font-weight: bold; line-height: 1.3; }
+.card .label { color: #a0aec0; font-size: 0.85em; margin-top: 6px; }
+.card .sub { color: #718096; font-size: 0.75em; margin-top: 4px; }
+.chart-container { padding: 10px 20px; max-width: 1400px; margin: 0 auto; }
+.chart { background: #1a2332; border-radius: 10px; margin-bottom: 20px; padding: 15px; border: 1px solid #2d3748; min-height: 420px; }
+.footer { text-align: center; padding: 20px; color: #718096; font-size: 0.85em; border-top: 1px solid #2d3748; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1 id="main-title">China Carbon Market Dashboard</h1>
+  <p id="sub-title"></p>
+  <div class="lang-switcher">
+    <select id="lang-select" onchange="switchLang(this.value)">
+      <option value="en">English</option>
+      <option value="cn" selected>中文</option>
+      <option value="ja">日本語</option>
+      <option value="ko">한국어</option>
+    </select>
+  </div>
+</div>
+
+<div class="cards" id="summary-cards"></div>
+<div class="chart-container">
+  <div class="chart" id="cea-price-chart"></div>
+  <div class="chart" id="cea-candlestick-chart"></div>
+  <div class="chart" id="cea-annual-box"></div>
+  <div class="chart" id="cea-monthly-heatmap"></div>
+  <div class="chart" id="ccer-price-chart"></div>
+</div>
+<div class="footer" id="footer-text">
+  china-ets-mcp | JIN-Z-pop and his merry AI brothers | Plotly.js
+</div>
+
+<script>
+// === i18n Translations ===
+const i18n = {
+  en: {
+    title: 'China Carbon Market Dashboard',
+    subtitle: 'China Carbon Market Dashboard | Generated: {{ generated_at }}',
+    ceaLatestPrice: 'CEA Latest Price',
+    ceaTradingDays: 'CEA Trading Days',
+    ceaPriceRange: 'CEA Price Range',
+    ccerLatestPrice: 'CCER Latest Price',
+    tradingDays: 'trading days',
+    avg: 'Avg',
+    ceaPriceTrend: 'CEA Closing Price Trend',
+    ceaCandlestick: 'CEA Candlestick + Volume',
+    annualDistribution: 'Annual Price Distribution',
+    monthlyHeatmap: 'Monthly Trading Volume Heatmap',
+    ccerPriceTrend: 'CCER Average Price Trend',
+    priceUnit: 'Price (CNY/ton)',
+    closingPrice: 'Closing Price (CNY/ton)',
+    volumeUnit: 'Volume (tons)',
+    volumeWan: 'Volume (10k tons)',
+    months: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+    noOhlc: 'Candlestick chart requires OHLC data (open/high/low/close all > 0)',
+    noCcer: 'No CCER data with valid prices available',
+  },
+  cn: {
+    title: '中国碳市场仪表盘',
+    subtitle: '中国碳市场仪表盘 | 生成时间: {{ generated_at }}',
+    ceaLatestPrice: 'CEA 最新收盘价',
+    ceaTradingDays: 'CEA 交易日数',
+    ceaPriceRange: 'CEA 价格范围',
+    ccerLatestPrice: 'CCER 最新均价',
+    tradingDays: '个交易日',
+    avg: '均价',
+    ceaPriceTrend: 'CEA 收盘价走势',
+    ceaCandlestick: 'CEA K线图 + 成交量',
+    annualDistribution: '年度价格分布',
+    monthlyHeatmap: '月度成交量热图',
+    ccerPriceTrend: 'CCER 均价走势',
+    priceUnit: '价格 (元/吨)',
+    closingPrice: '收盘价 (元/吨)',
+    volumeUnit: '成交量 (吨)',
+    volumeWan: '成交量 (万吨)',
+    months: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'],
+    noOhlc: 'K线图需要完整的开盘/最高/最低/收盘数据',
+    noCcer: '暂无有效CCER价格数据',
+  },
+  ja: {
+    title: '中国炭素市場ダッシュボード',
+    subtitle: '中国炭素市場ダッシュボード | 生成日時: {{ generated_at }}',
+    ceaLatestPrice: 'CEA 最新終値',
+    ceaTradingDays: 'CEA 取引日数',
+    ceaPriceRange: 'CEA 価格レンジ',
+    ccerLatestPrice: 'CCER 最新平均価格',
+    tradingDays: '取引日',
+    avg: '平均',
+    ceaPriceTrend: 'CEA 終値推移',
+    ceaCandlestick: 'CEA ローソク足 + 出来高',
+    annualDistribution: '年間価格分布',
+    monthlyHeatmap: '月別取引量ヒートマップ',
+    ccerPriceTrend: 'CCER 平均価格推移',
+    priceUnit: '価格 (元/トン)',
+    closingPrice: '終値 (元/トン)',
+    volumeUnit: '出来高 (トン)',
+    volumeWan: '出来高 (万トン)',
+    months: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'],
+    noOhlc: 'ローソク足チャートにはOHLCデータ（始値/高値/安値/終値）が必要です',
+    noCcer: '有効なCCER価格データがありません',
+  },
+  ko: {
+    title: '중국 탄소시장 대시보드',
+    subtitle: '중국 탄소시장 대시보드 | 생성일시: {{ generated_at }}',
+    ceaLatestPrice: 'CEA 최신 종가',
+    ceaTradingDays: 'CEA 거래일수',
+    ceaPriceRange: 'CEA 가격 범위',
+    ccerLatestPrice: 'CCER 최신 평균가',
+    tradingDays: '거래일',
+    avg: '평균',
+    ceaPriceTrend: 'CEA 종가 추이',
+    ceaCandlestick: 'CEA 캔들차트 + 거래량',
+    annualDistribution: '연간 가격 분포',
+    monthlyHeatmap: '월별 거래량 히트맵',
+    ccerPriceTrend: 'CCER 평균가격 추이',
+    priceUnit: '가격 (위안/톤)',
+    closingPrice: '종가 (위안/톤)',
+    volumeUnit: '거래량 (톤)',
+    volumeWan: '거래량 (만톤)',
+    months: ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'],
+    noOhlc: '캔들차트에는 OHLC 데이터(시가/고가/저가/종가)가 필요합니다',
+    noCcer: '유효한 CCER 가격 데이터가 없습니다',
+  },
+};
+
+let currentLang = 'cn';
+
+// === Data ===
+const rawCeaData = {{ cea_data_json }};
+const rawCcerData = {{ ccer_data_json }};
+const ceaSummary = {{ cea_summary_json }};
+const ccerSummary = {{ ccer_summary_json }};
+
+const ceaData = rawCeaData.filter(d => d.closing_price > 0);
+const ceaOhlcData = ceaData.filter(d => d.opening_price > 0 && d.high_price > 0 && d.low_price > 0);
+const ccerData = rawCcerData
+  .map(d => {
+    // Recover avg_price from amount/volume when avg_price is 0 but trading occurred
+    if (d.avg_price === 0 && d.daily_volume > 0 && d.daily_amount > 0) {
+      return { ...d, avg_price: Math.round((d.daily_amount / d.daily_volume) * 100) / 100 };
+    }
+    return d;
+  })
+  .filter(d => d.avg_price > 0);
+
+const darkLayout = {
+  paper_bgcolor: '#1a2332', plot_bgcolor: '#1a2332',
+  font: { color: '#e0e0e0', family: 'Segoe UI, sans-serif' },
+  xaxis: { gridcolor: '#2d3748', linecolor: '#2d3748' },
+  yaxis: { gridcolor: '#2d3748', linecolor: '#2d3748' },
+  margin: { t: 60, b: 50, l: 70, r: 30 },
+};
+
+const plotlyConfig = {
+  responsive: true,
+  displaylogo: false,
+  modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+};
+
+function fmt(n, dec) {
+  if (n == null || n === 0) return 'N/A';
+  return dec != null ? n.toFixed(dec).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : n.toLocaleString();
+}
+
+function priceChange(data, field) {
+  if (data.length < 2) return { pct: 0, abs: 0 };
+  const curr = data[data.length - 1][field];
+  const prev = data[data.length - 2][field];
+  return { pct: prev > 0 ? ((curr - prev) / prev * 100) : 0, abs: curr - prev };
+}
+
+// === Render Functions ===
+function renderCards(lang) {
+  const t = i18n[lang];
+  const cardsDiv = document.getElementById('summary-cards');
+  cardsDiv.innerHTML = '';
+  const ceaChange = priceChange(ceaData, 'closing_price');
+  const ceaChangeColor = ceaChange.abs >= 0 ? '#48bb78' : '#fc8181';
+  const ceaChangeSign = ceaChange.abs >= 0 ? '+' : '';
+
+  const cardDefs = [
+    {
+      value: ceaSummary.latest_closing_price ? `¥${fmt(ceaSummary.latest_closing_price, 2)}` : 'N/A',
+      label: t.ceaLatestPrice,
+      sub: ceaData.length >= 2 ? `<span style="color:${ceaChangeColor}">${ceaChangeSign}${fmt(ceaChange.abs, 2)} (${ceaChangeSign}${ceaChange.pct.toFixed(2)}%)</span>` : '',
+    },
+    {
+      value: ceaSummary.total_trading_days || 0,
+      label: t.ceaTradingDays,
+      sub: ceaSummary.first_date && ceaSummary.last_date ? `${ceaSummary.first_date} ~ ${ceaSummary.last_date}` : '',
+    },
+    {
+      value: ceaSummary.min_price && ceaSummary.max_price ? `¥${fmt(ceaSummary.min_price, 2)} - ¥${fmt(ceaSummary.max_price, 2)}` : 'N/A',
+      label: t.ceaPriceRange,
+      sub: ceaSummary.avg_price ? `${t.avg}: ¥${fmt(ceaSummary.avg_price, 2)}` : '',
+    },
+    {
+      value: ccerSummary.latest_avg_price ? `¥${fmt(ccerSummary.latest_avg_price, 2)}` : 'N/A',
+      label: t.ccerLatestPrice,
+      sub: `${ccerData.length} ${t.tradingDays}`,
+    },
+  ];
+  cardDefs.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.innerHTML = `<div class="value">${c.value}</div><div class="label">${c.label}</div>${c.sub ? '<div class="sub">' + c.sub + '</div>' : ''}`;
+    cardsDiv.appendChild(div);
+  });
+}
+
+function renderCharts(lang) {
+  const t = i18n[lang];
+
+  // 1. CEA Closing Price
+  if (ceaData.length > 0) {
+    Plotly.newPlot('cea-price-chart', [{
+      x: ceaData.map(d => d.date), y: ceaData.map(d => d.closing_price),
+      type: 'scatter', mode: 'lines',
+      line: { color: '#63b3ed', width: 2 },
+      name: 'CEA',
+      hovertemplate: '%{x}<br>¥%{y:.2f}/ton<extra></extra>',
+    }], {
+      ...darkLayout,
+      title: { text: t.ceaPriceTrend, font: { color: '#63b3ed', size: 16 } },
+      xaxis: { ...darkLayout.xaxis, rangeslider: { visible: true, bgcolor: '#1a2332' } },
+      yaxis: { ...darkLayout.yaxis, title: { text: t.priceUnit, standoff: 10 } },
+      height: 450,
+    }, plotlyConfig);
+  }
+
+  // 2. Candlestick + Volume
+  if (ceaOhlcData.length > 0) {
+    const ohlcDates = ceaOhlcData.map(d => d.date);
+    Plotly.newPlot('cea-candlestick-chart', [{
+      x: ohlcDates,
+      open: ceaOhlcData.map(d => d.opening_price),
+      high: ceaOhlcData.map(d => d.high_price),
+      low: ceaOhlcData.map(d => d.low_price),
+      close: ceaOhlcData.map(d => d.closing_price),
+      type: 'candlestick', name: 'OHLC',
+      increasing: { line: { color: '#48bb78' }, fillcolor: 'rgba(72,187,120,0.3)' },
+      decreasing: { line: { color: '#fc8181' }, fillcolor: 'rgba(252,129,129,0.3)' },
+    }, {
+      x: ohlcDates,
+      y: ceaOhlcData.map(d => d.total_volume),
+      type: 'bar', name: 'Volume', yaxis: 'y2',
+      marker: { color: ceaOhlcData.map(d => d.closing_price >= d.opening_price ? 'rgba(72,187,120,0.4)' : 'rgba(252,129,129,0.4)') },
+      hovertemplate: '%{x}<br>Volume: %{y:,.0f}<extra></extra>',
+    }], {
+      ...darkLayout,
+      title: { text: t.ceaCandlestick, font: { color: '#63b3ed', size: 16 } },
+      yaxis: { ...darkLayout.yaxis, title: t.priceUnit, domain: [0.3, 1] },
+      yaxis2: { title: t.volumeUnit, gridcolor: '#2d3748', linecolor: '#2d3748', domain: [0, 0.25], anchor: 'x', font: { color: '#e0e0e0' } },
+      xaxis: { ...darkLayout.xaxis, rangeslider: { visible: false } },
+      height: 500,
+      showlegend: false,
+    }, plotlyConfig);
+  } else {
+    document.getElementById('cea-candlestick-chart').innerHTML = `<p style="text-align:center;padding:40px;color:#718096;">${t.noOhlc}</p>`;
+  }
+
+  // 3. Annual Box Plot
+  if (ceaData.length > 0) {
+    const dates = ceaData.map(d => d.date);
+    const years = [...new Set(dates.map(d => d.substring(0, 4)))].sort();
+    const colors = ['#63b3ed', '#48bb78', '#ed8936', '#fc8181', '#9f7aea', '#f6e05e'];
+    const boxTraces = years.map((year, i) => ({
+      y: ceaData.filter(d => d.date.startsWith(year)).map(d => d.closing_price),
+      type: 'box', name: year,
+      marker: { color: colors[i % colors.length] },
+      boxpoints: 'outliers',
+    }));
+    Plotly.newPlot('cea-annual-box', boxTraces, {
+      ...darkLayout,
+      title: { text: t.annualDistribution, font: { color: '#63b3ed', size: 16 } },
+      yaxis: { ...darkLayout.yaxis, title: t.closingPrice },
+      showlegend: false,
+      height: 420,
+    }, plotlyConfig);
+
+    // 4. Monthly Volume Heatmap
+    const monthlyData = {};
+    ceaData.forEach(d => {
+      const year = d.date.substring(0, 4);
+      const month = parseInt(d.date.substring(5, 7));
+      const key = `${year}-${month}`;
+      monthlyData[key] = (monthlyData[key] || 0) + d.total_volume;
+    });
+    const heatYears = [...new Set(ceaData.map(d => d.date.substring(0, 4)))].sort();
+    const months = Array.from({length: 12}, (_, i) => i + 1);
+    const zData = heatYears.map(y => months.map(m => {
+      const v = monthlyData[`${y}-${m}`];
+      return v && v > 0 ? Math.round(v / 10000) : null;
+    }));
+    Plotly.newPlot('cea-monthly-heatmap', [{
+      z: zData, x: t.months, y: heatYears,
+      type: 'heatmap', colorscale: 'YlOrRd', connectgaps: false,
+      colorbar: { title: { text: t.volumeWan, side: 'right' }, tickfont: { color: '#e0e0e0' } },
+      hovertemplate: '%{y} %{x}<br>%{z:,.0f}<extra></extra>',
+      zmin: 0,
+    }], {
+      ...darkLayout,
+      title: { text: t.monthlyHeatmap, font: { color: '#63b3ed', size: 16 } },
+      xaxis: { ...darkLayout.xaxis, type: 'category' },
+      yaxis: { ...darkLayout.yaxis, type: 'category', autorange: 'reversed' },
+      height: 380,
+    }, plotlyConfig);
+  }
+
+  // 5. CCER Price Chart — break line at gaps > 14 days
+  if (ccerData.length > 0) {
+    const ccerX = [], ccerY = [];
+    for (let i = 0; i < ccerData.length; i++) {
+      if (i > 0) {
+        const prev = new Date(ccerData[i - 1].date);
+        const curr = new Date(ccerData[i].date);
+        if ((curr - prev) / 86400000 > 14) {
+          ccerX.push(null);
+          ccerY.push(null);
+        }
+      }
+      ccerX.push(ccerData[i].date);
+      ccerY.push(ccerData[i].avg_price);
+    }
+    Plotly.newPlot('ccer-price-chart', [{
+      x: ccerX, y: ccerY,
+      type: 'scatter', mode: 'lines+markers',
+      line: { color: '#ed8936', width: 2 },
+      marker: { size: 7, color: '#ed8936' },
+      name: 'CCER',
+      connectgaps: false,
+      hovertemplate: '%{x}<br>¥%{y:.2f}/ton<extra></extra>',
+    }], {
+      ...darkLayout,
+      title: { text: t.ccerPriceTrend, font: { color: '#ed8936', size: 16 } },
+      xaxis: { ...darkLayout.xaxis, type: 'date', rangeslider: { visible: true, bgcolor: '#1a2332' } },
+      yaxis: { ...darkLayout.yaxis, title: t.priceUnit },
+      height: 420,
+    }, plotlyConfig);
+  } else {
+    document.getElementById('ccer-price-chart').innerHTML = `<p style="text-align:center;padding:40px;color:#718096;">${t.noCcer}</p>`;
+  }
+}
+
+function switchLang(lang) {
+  currentLang = lang;
+  const t = i18n[lang];
+  document.getElementById('main-title').textContent = t.title;
+  document.getElementById('sub-title').textContent = t.subtitle;
+  localStorage.setItem('ets-dashboard-lang', lang);
+  renderCards(lang);
+  renderCharts(lang);
+}
+
+// Initialize with saved preference or default
+const savedLang = localStorage.getItem('ets-dashboard-lang') || 'cn';
+document.getElementById('lang-select').value = savedLang;
+switchLang(savedLang);
+</script>
+</body>
+</html>
