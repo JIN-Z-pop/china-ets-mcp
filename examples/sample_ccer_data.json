@@ -1,0 +1,82 @@
+[
+  {
+    "date": "2025-11-18",
+    "daily_volume": 50500,
+    "daily_amount": 3581250.0,
+    "avg_price": 70.92,
+    "cumulative_volume": 4559643,
+    "cumulative_amount": 344490968.6
+  },
+  {
+    "date": "2025-11-19",
+    "daily_volume": 20014,
+    "daily_amount": 1440988.5,
+    "avg_price": 72.0,
+    "cumulative_volume": 4579657,
+    "cumulative_amount": 345931957.1
+  },
+  {
+    "date": "2025-11-20",
+    "daily_volume": 6280,
+    "daily_amount": 459600.0,
+    "avg_price": 73.18,
+    "cumulative_volume": 4585937,
+    "cumulative_amount": 346391557.1
+  },
+  {
+    "date": "2025-11-21",
+    "daily_volume": 200,
+    "daily_amount": 12880.0,
+    "avg_price": 64.4,
+    "cumulative_volume": 4586137,
+    "cumulative_amount": 346404437.1
+  },
+  {
+    "date": "2025-11-24",
+    "daily_volume": 11402,
+    "daily_amount": 694964.4,
+    "avg_price": 60.95,
+    "cumulative_volume": 4597539,
+    "cumulative_amount": 347099401.5
+  },
+  {
+    "date": "2025-11-25",
+    "daily_volume": 450000,
+    "daily_amount": 29375000.0,
+    "avg_price": 65.28,
+    "cumulative_volume": 5047539,
+    "cumulative_amount": 376474401.5
+  },
+  {
+    "date": "2025-11-26",
+    "daily_volume": 1289861,
+    "daily_amount": 80589990.34,
+    "avg_price": 62.48,
+    "cumulative_volume": 6337400,
+    "cumulative_amount": 457064391.8
+  },
+  {
+    "date": "2025-11-27",
+    "daily_volume": 1500,
+    "daily_amount": 90060.0,
+    "avg_price": 60.04,
+    "cumulative_volume": 6338900,
+    "cumulative_amount": 457154451.8
+  },
+  {
+    "date": "2025-11-28",
+    "daily_volume": 778,
+    "daily_amount": 49172.0,
+    "avg_price": 63.2,
+    "cumulative_volume": 6339678,
+    "cumulative_amount": 457203623.8
+  },
+  {
+    "date": "2025-12-01",
+    "daily_volume": 413,
+    "daily_amount": 31065.37,
+    "avg_price": 75.22,
+    "cumulative_volume": 6340091,
+    "cumulative_amount": 457234689.2
+  }
+]
