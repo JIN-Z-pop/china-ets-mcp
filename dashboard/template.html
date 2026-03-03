@@ -50,6 +50,12 @@ body { font-family: 'Segoe UI', sans-serif; background: #0f1923; color: #e0e0e0;
   <div class="chart" id="ccer-price-chart"></div>
 </div>
 <div class="footer" id="footer-text">
+  <div style="margin-bottom:12px;">
+    <strong id="ds-title"></strong><br>
+    <span id="ds-cea"></span><br>
+    <span id="ds-ccer"></span><br>
+    <span id="ds-disclaimer" style="color:#e53e3e;font-size:0.8em;"></span>
+  </div>
   china-ets-mcp | JIN-Z-pop and his merry AI brothers | Plotly.js
 </div>
 
@@ -77,6 +83,10 @@ const i18n = {
     months: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
     noOhlc: 'Candlestick chart requires OHLC data (open/high/low/close all > 0)',
     noCcer: 'No CCER data with valid prices available',
+    dataSource: 'Data Sources',
+    ceaSource: 'CEA: CNEEEX (2021-2025/12) / carbonmarket.cn (2025/12-)',
+    ccerSource: 'CCER: Beijing Green Exchange (ccer.com.cn)',
+    disclaimer: 'This dashboard is for research purposes only. Data accuracy is not guaranteed.',
   },
   cn: {
     title: '中国碳市场仪表盘',
@@ -99,6 +109,10 @@ const i18n = {
     months: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'],
     noOhlc: 'K线图需要完整的开盘/最高/最低/收盘数据',
     noCcer: '暂无有效CCER价格数据',
+    dataSource: '数据来源',
+    ceaSource: 'CEA: 上海环境能源交易所 (2021-2025/12) / carbonmarket.cn (2025/12-)',
+    ccerSource: 'CCER: 北京绿色交易所 (ccer.com.cn)',
+    disclaimer: '本仪表盘仅供研究参考，数据准确性不做保证。',
   },
   ja: {
     title: '中国炭素市場ダッシュボード',
@@ -121,6 +135,10 @@ const i18n = {
     months: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'],
     noOhlc: 'ローソク足チャートにはOHLCデータ（始値/高値/安値/終値）が必要です',
     noCcer: '有効なCCER価格データがありません',
+    dataSource: 'データ出典',
+    ceaSource: 'CEA: 上海環境エネルギー取引所 (2021-2025/12) / carbonmarket.cn (2025/12-)',
+    ccerSource: 'CCER: 北京グリーン取引所 (ccer.com.cn)',
+    disclaimer: '本ダッシュボードは研究目的です。データの正確性を保証するものではありません。',
   },
   ko: {
     title: '중국 탄소시장 대시보드',
@@ -143,6 +161,10 @@ const i18n = {
     months: ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'],
     noOhlc: '캔들차트에는 OHLC 데이터(시가/고가/저가/종가)가 필요합니다',
     noCcer: '유효한 CCER 가격 데이터가 없습니다',
+    dataSource: '데이터 출처',
+    ceaSource: 'CEA: 상하이환경에너지거래소 (2021-2025/12) / carbonmarket.cn (2025/12-)',
+    ccerSource: 'CCER: 베이징녹색거래소 (ccer.com.cn)',
+    disclaimer: '본 대시보드는 연구 목적입니다. 데이터 정확성을 보증하지 않습니다.',
   },
 };
 
@@ -426,6 +448,10 @@ function switchLang(lang) {
   const t = i18n[lang];
   document.getElementById('main-title').textContent = t.title;
   document.getElementById('sub-title').textContent = t.subtitle;
+  document.getElementById('ds-title').textContent = t.dataSource;
+  document.getElementById('ds-cea').textContent = t.ceaSource;
+  document.getElementById('ds-ccer').textContent = t.ccerSource;
+  document.getElementById('ds-disclaimer').textContent = t.disclaimer;
   renderCards(lang);
   renderCharts(lang);
   try { localStorage.setItem('ets-dashboard-lang', lang); } catch(e) {}
