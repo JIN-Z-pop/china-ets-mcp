@@ -25,6 +25,35 @@ body { font-family: 'Segoe UI', sans-serif; background: #0f1923; color: #e0e0e0;
 .chart-container { padding: 10px 20px; max-width: 1400px; margin: 0 auto; }
 .chart { background: #1a2332; border-radius: 10px; margin-bottom: 20px; padding: 15px; border: 1px solid #2d3748; min-height: 420px; }
 .footer { text-align: center; padding: 20px; color: #718096; font-size: 0.85em; border-top: 1px solid #2d3748; margin-top: 10px; }
+/* Filter bar */
+.pf-bar { padding: 6px 10px 2px; }
+.pf-row { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 3px; }
+.pf-sep { width: 1px; height: 16px; background: #4a5568; margin: 0 3px; flex-shrink: 0; }
+.pf-btn {
+  display: inline-flex; align-items: center; gap: 2px;
+  padding: 2px 7px; border-radius: 3px; font-size: 0.72em;
+  cursor: pointer; border: 1px solid #4a5568; background: transparent;
+  color: #718096; transition: all 0.12s; user-select: none; line-height: 1.5;
+}
+.pf-btn:hover { border-color: #a0aec0; color: #e0e0e0; }
+.pf-ctrl { font-weight: 600; background: #2d3748; }
+.pf-ctrl:hover { background: #4a5568; }
+.pf-grp { font-weight: 600; }
+.pf-grp .arrow { font-size: 0.7em; transition: transform 0.15s; display: inline-block; }
+.pf-grp.expanded .arrow { transform: rotate(90deg); }
+.pf-grp.g-on { color: #fff; border-color: var(--c); background: var(--c); }
+.pf-grp.g-partial { color: var(--c); border-color: var(--c); border-style: dashed; }
+.pf-sub { display: none; gap: 3px; align-items: center; flex-wrap: wrap; padding: 1px 0; }
+.pf-sub.open { display: flex; }
+.pf-sub .pf-sub-ctl { font-size: 0.62em; color: #718096; cursor: pointer; padding: 1px 4px; border-radius: 2px; }
+.pf-sub .pf-sub-ctl:hover { color: #e0e0e0; background: #2d3748; }
+.pf-type {
+  padding: 1px 5px; font-size: 0.65em; min-width: 18px; text-align: center;
+  border-radius: 2px; cursor: pointer; border: 1px solid #4a5568;
+  color: #718096; transition: all 0.12s; user-select: none;
+}
+.pf-type:hover { border-color: #a0aec0; color: #e0e0e0; }
+.pf-type.on { color: #fff; border-color: var(--c); background: var(--c); }
 </style>
 </head>
 <body>
@@ -43,9 +72,15 @@ body { font-family: 'Segoe UI', sans-serif; background: #0f1923; color: #e0e0e0;
 
 <div class="cards" id="summary-cards"></div>
 <div class="chart-container">
-  <div class="chart" id="cea-price-chart"></div>
+  <div class="chart">
+    <div class="pf-bar" id="cea-price-filter"></div>
+    <div id="cea-price-chart"></div>
+  </div>
   <div class="chart" id="cea-candlestick-chart"></div>
-  <div class="chart" id="cea-annual-box"></div>
+  <div class="chart">
+    <div class="pf-bar" id="box-filter"></div>
+    <div id="cea-annual-box"></div>
+  </div>
   <div class="chart" id="cea-monthly-heatmap"></div>
   <div class="chart" id="ccer-price-chart"></div>
 </div>
@@ -87,6 +122,10 @@ const i18n = {
     ceaSource: 'CEA: CNEEEX (2021-2025/12) / carbonmarket.cn (2025/12-)',
     ccerSource: 'CCER: Beijing Green Exchange (ccer.com.cn)',
     disclaimer: 'This dashboard is for research purposes only. Data accuracy is not guaranteed.',
+    filterAll: 'All', filterNone: 'None', filterReset: 'Reset',
+    filterGrpAll: 'all', filterGrpNone: 'none',
+    grpPrice: 'Price', grpVolume: 'Volume',
+    volListed: 'Listed', volBlock: 'Block', volTotal: 'Total',
   },
   cn: {
     title: '中国碳市场仪表盘',
@@ -113,6 +152,10 @@ const i18n = {
     ceaSource: 'CEA: 上海环境能源交易所 (2021-2025/12) / carbonmarket.cn (2025/12-)',
     ccerSource: 'CCER: 北京绿色交易所 (ccer.com.cn)',
     disclaimer: '本仪表盘仅供研究参考，数据准确性不做保证。',
+    filterAll: '全选', filterNone: '全取消', filterReset: '重置',
+    filterGrpAll: '全选', filterGrpNone: '取消',
+    grpPrice: '价格', grpVolume: '成交量',
+    volListed: '挂牌', volBlock: '大宗', volTotal: '合计',
   },
   ja: {
     title: '中国炭素市場ダッシュボード',
@@ -139,6 +182,10 @@ const i18n = {
     ceaSource: 'CEA: 上海環境エネルギー取引所 (2021-2025/12) / carbonmarket.cn (2025/12-)',
     ccerSource: 'CCER: 北京グリーン取引所 (ccer.com.cn)',
     disclaimer: '本ダッシュボードは研究目的です。データの正確性を保証するものではありません。',
+    filterAll: '全選択', filterNone: '全解除', filterReset: 'クリア',
+    filterGrpAll: '全', filterGrpNone: '解除',
+    grpPrice: '価格', grpVolume: '出来高',
+    volListed: '上場', volBlock: '大口', volTotal: '合計',
   },
   ko: {
     title: '중국 탄소시장 대시보드',
@@ -165,6 +212,10 @@ const i18n = {
     ceaSource: 'CEA: 상하이환경에너지거래소 (2021-2025/12) / carbonmarket.cn (2025/12-)',
     ccerSource: 'CCER: 베이징녹색거래소 (ccer.com.cn)',
     disclaimer: '본 대시보드는 연구 목적입니다. 데이터 정확성을 보증하지 않습니다.',
+    filterAll: '전체', filterNone: '해제', filterReset: '초기화',
+    filterGrpAll: '전체', filterGrpNone: '해제',
+    grpPrice: '가격', grpVolume: '거래량',
+    volListed: '장내', volBlock: '대량', volTotal: '합계',
   },
 };
 
@@ -258,21 +309,45 @@ let chartsInitialized = false;
 function initCharts(lang) {
   const t = i18n[lang];
 
-  // 1. CEA Closing Price
+  // 1. CEA Closing Price — year-colored lines + volume bars
   if (ceaData.length > 0) {
-    Plotly.newPlot('cea-price-chart', [{
-      x: ceaData.map(d => d.date), y: ceaData.map(d => d.closing_price),
-      type: 'scatter', mode: 'lines',
-      line: { color: '#63b3ed', width: 2 },
-      name: 'CEA',
-      hovertemplate: '%{x}<br>¥%{y:.2f}/ton<extra></extra>',
-    }], {
+    const ceaYears = [...new Set(ceaData.map(d => d.date.substring(0, 4)))].sort();
+    const yearColors = ['#63b3ed','#48bb78','#ed8936','#fc8181','#9f7aea','#f6e05e','#38b2ac'];
+    const priceTraces = ceaYears.map((yr, i) => {
+      const yd = ceaData.filter(d => d.date.startsWith(yr));
+      return {
+        x: yd.map(d => d.date), y: yd.map(d => d.closing_price),
+        type: 'scatter', mode: 'lines',
+        line: { color: yearColors[i % yearColors.length], width: 1.8 },
+        name: yr,
+        hovertemplate: `${yr}<br>%{x}<br>¥%{y:.2f}/ton<extra></extra>`,
+      };
+    });
+    const volDefs = [
+      { key: 'listed_volume', color: 'rgba(66,153,225,0.35)' },
+      { key: 'block_volume', color: 'rgba(245,101,101,0.35)' },
+      { key: 'total_volume', color: 'rgba(160,174,192,0.25)' },
+    ];
+    const volNames = [t.volListed, t.volBlock, t.volTotal];
+    const volTraces = volDefs.map((v, i) => ({
+      x: ceaData.map(d => d.date), y: ceaData.map(d => d[v.key]),
+      type: 'bar', name: volNames[i], yaxis: 'y2',
+      marker: { color: v.color },
+      hovertemplate: `${volNames[i]}<br>%{x}<br>%{y:,.0f}<extra></extra>`,
+      visible: 'legendonly',
+    }));
+    const allTraces = [...priceTraces, ...volTraces];
+    Plotly.newPlot('cea-price-chart', allTraces, {
       ...darkLayout,
       title: { text: t.ceaPriceTrend, font: { color: '#63b3ed', size: 16 } },
       xaxis: { ...darkLayout.xaxis, rangeslider: { visible: true, bgcolor: '#1a2332' } },
       yaxis: { ...darkLayout.yaxis, title: { text: t.priceUnit, standoff: 10 } },
-      height: 450,
+      yaxis2: { overlaying: 'y', side: 'right', title: t.volumeUnit, gridcolor: 'transparent', font: { color: '#718096' }, tickfont: { color: '#718096' } },
+      height: 480,
+      showlegend: false,
+      barmode: 'overlay',
     }, plotlyConfig);
+    buildCeaPriceFilter(ceaYears, yearColors, volDefs, t);
   }
 
   // 2. Candlestick + Volume
@@ -324,6 +399,7 @@ function initCharts(lang) {
       showlegend: false,
       height: 420,
     }, plotlyConfig);
+    buildBoxFilter(years, colors, t);
 
     // 4. Monthly Volume Heatmap
     const monthlyData = {};
@@ -391,6 +467,196 @@ function initCharts(lang) {
   chartsInitialized = true;
 }
 
+// === Filter Bar Logic ===
+// Generic filter manager factory
+function createFilter(chartId, barId) {
+  const f = {
+    state: {}, traceMap: {}, groups: {}, groupOrder: [], groupColors: {},
+    defaultOn: new Set(),
+
+    apply() {
+      const el = document.getElementById(chartId);
+      if (!el || !el.data) return;
+      const vis = el.data.map((_, i) => {
+        const key = Object.keys(f.traceMap).find(k => f.traceMap[k] === i);
+        return key && f.state[key] ? true : 'legendonly';
+      });
+      Plotly.restyle(chartId, { visible: vis });
+    },
+
+    updateUI() {
+      // Update type chips
+      Object.keys(f.state).forEach(key => {
+        const chip = document.getElementById(`pf-${barId}-${key}`);
+        if (chip) chip.classList.toggle('on', !!f.state[key]);
+      });
+      // Update group state
+      f.groupOrder.forEach(grp => {
+        const items = f.groups[grp];
+        if (!items) return;
+        const btn = document.getElementById(`pf-grp-${barId}-${grp}`);
+        if (!btn) return;
+        const onCount = items.filter(it => f.state[it.key]).length;
+        btn.classList.remove('g-on', 'g-partial');
+        if (onCount === items.length) btn.classList.add('g-on');
+        else if (onCount > 0) btn.classList.add('g-partial');
+      });
+    },
+
+    setAll(on) { Object.keys(f.state).forEach(k => { f.state[k] = on; }); f.apply(); f.updateUI(); },
+    setGroup(grp, on) { (f.groups[grp] || []).forEach(it => { f.state[it.key] = on; }); f.apply(); f.updateUI(); },
+    toggle(key) { f.state[key] = !f.state[key]; f.apply(); f.updateUI(); },
+    reset() {
+      Object.keys(f.state).forEach(k => { f.state[k] = f.defaultOn.has(k); });
+      f.apply(); f.updateUI();
+      document.querySelectorAll(`#${barId} .pf-sub.open`).forEach(el => el.classList.remove('open'));
+      document.querySelectorAll(`#${barId} .pf-grp.expanded`).forEach(el => el.classList.remove('expanded'));
+    },
+
+    build(t) {
+      const bar = document.getElementById(barId);
+      bar.innerHTML = '';
+      const row1 = document.createElement('div');
+      row1.className = 'pf-row';
+
+      const mkCtrl = (label, fn) => {
+        const b = document.createElement('span');
+        b.className = 'pf-btn pf-ctrl';
+        b.textContent = label;
+        b.onclick = fn;
+        return b;
+      };
+      row1.appendChild(mkCtrl(t.filterAll, () => f.setAll(true)));
+      row1.appendChild(mkCtrl(t.filterNone, () => f.setAll(false)));
+      row1.appendChild(mkCtrl(t.filterReset, () => f.reset()));
+
+      if (f.groupOrder.length > 1) {
+        // Multi-group: add group chips with expand
+        const sep = document.createElement('span'); sep.className = 'pf-sep';
+        row1.appendChild(sep);
+
+        f.groupOrder.forEach(grp => {
+          if (!f.groups[grp]) return;
+          const cnt = f.groups[grp].length;
+          const onCount = f.groups[grp].filter(it => f.state[it.key]).length;
+          const b = document.createElement('span');
+          b.className = 'pf-btn pf-grp' + (onCount === cnt ? ' g-on' : onCount > 0 ? ' g-partial' : '');
+          b.id = `pf-grp-${barId}-${grp}`;
+          b.style.setProperty('--c', f.groupColors[grp] || '#4a5568');
+          b.innerHTML = `${grp}<span style="opacity:0.6;font-size:0.85em;margin:0 2px">${cnt}</span><span class="arrow">&#9656;</span>`;
+          b.onclick = () => {
+            const sub = document.getElementById(`pf-sub-${barId}-${grp}`);
+            if (sub) { sub.classList.toggle('open'); b.classList.toggle('expanded'); }
+          };
+          row1.appendChild(b);
+        });
+        bar.appendChild(row1);
+
+        // Sub-rows per group
+        f.groupOrder.forEach(grp => {
+          const items = f.groups[grp];
+          if (!items) return;
+          const sub = document.createElement('div');
+          sub.className = 'pf-sub'; sub.id = `pf-sub-${barId}-${grp}`;
+
+          const allC = document.createElement('span'); allC.className = 'pf-sub-ctl';
+          allC.textContent = t.filterGrpAll; allC.onclick = () => f.setGroup(grp, true);
+          sub.appendChild(allC);
+          const noneC = document.createElement('span'); noneC.className = 'pf-sub-ctl';
+          noneC.textContent = t.filterGrpNone; noneC.onclick = () => f.setGroup(grp, false);
+          sub.appendChild(noneC);
+          const ss = document.createElement('span'); ss.className = 'pf-sep'; sub.appendChild(ss);
+
+          items.forEach(it => {
+            const chip = document.createElement('span');
+            chip.className = 'pf-type' + (f.state[it.key] ? ' on' : '');
+            chip.id = `pf-${barId}-${it.key}`;
+            chip.style.setProperty('--c', f.groupColors[grp] || '#4a5568');
+            chip.textContent = it.label;
+            chip.title = it.key;
+            chip.onclick = () => f.toggle(it.key);
+            sub.appendChild(chip);
+          });
+          bar.appendChild(sub);
+        });
+      } else {
+        // Single group: flat row with chips
+        const sep = document.createElement('span'); sep.className = 'pf-sep';
+        row1.appendChild(sep);
+        const grp = f.groupOrder[0];
+        (f.groups[grp] || []).forEach(it => {
+          const chip = document.createElement('span');
+          chip.className = 'pf-type' + (f.state[it.key] ? ' on' : '');
+          chip.id = `pf-${barId}-${it.key}`;
+          chip.style.setProperty('--c', f.groupColors[grp] || '#4a5568');
+          chip.textContent = it.label;
+          chip.title = it.key;
+          chip.onclick = () => f.toggle(it.key);
+          row1.appendChild(chip);
+        });
+        bar.appendChild(row1);
+      }
+    },
+
+    updateLabels(t) {
+      const ctrls = document.querySelectorAll(`#${barId} .pf-ctrl`);
+      if (ctrls.length >= 3) { ctrls[0].textContent = t.filterAll; ctrls[1].textContent = t.filterNone; ctrls[2].textContent = t.filterReset; }
+      document.querySelectorAll(`#${barId} .pf-sub-ctl`).forEach((el, i) => {
+        el.textContent = i % 2 === 0 ? t.filterGrpAll : t.filterGrpNone;
+      });
+    },
+  };
+  return f;
+}
+
+// CEA Price filter instance
+let ceaPriceFilter = null;
+function buildCeaPriceFilter(years, yearColors, volDefs, t) {
+  ceaPriceFilter = createFilter('cea-price-chart', 'cea-price-filter');
+  const f = ceaPriceFilter;
+  f.groupOrder = [t.grpPrice, t.grpVolume];
+  f.groupColors[t.grpPrice] = '#63b3ed';
+  f.groupColors[t.grpVolume] = '#a0aec0';
+  const volLabels = [t.volListed, t.volBlock, t.volTotal];
+  const volColors = ['rgba(66,153,225,0.7)', 'rgba(245,101,101,0.7)', 'rgba(160,174,192,0.5)'];
+
+  years.forEach((yr, i) => {
+    const key = `price-${yr}`;
+    f.state[key] = true;
+    f.defaultOn.add(key);
+    f.traceMap[key] = i;
+    if (!f.groups[t.grpPrice]) f.groups[t.grpPrice] = [];
+    f.groups[t.grpPrice].push({ key, label: yr });
+    f.groupColors[t.grpPrice] = '#63b3ed';
+  });
+  volDefs.forEach((v, i) => {
+    const key = `vol-${v.key}`;
+    f.state[key] = false; // hidden by default
+    f.traceMap[key] = years.length + i;
+    if (!f.groups[t.grpVolume]) f.groups[t.grpVolume] = [];
+    f.groups[t.grpVolume].push({ key, label: volLabels[i] });
+  });
+  f.build(t);
+}
+
+// Box plot filter instance
+let boxFilter = null;
+function buildBoxFilter(years, colors, t) {
+  boxFilter = createFilter('cea-annual-box', 'box-filter');
+  const f = boxFilter;
+  f.groupOrder = ['years'];
+  f.groupColors['years'] = '#63b3ed';
+  years.forEach((yr, i) => {
+    f.state[yr] = true;
+    f.defaultOn.add(yr);
+    f.traceMap[yr] = i;
+    if (!f.groups['years']) f.groups['years'] = [];
+    f.groups['years'].push({ key: yr, label: yr });
+    f.groupColors['years'] = colors[i % colors.length];
+  });
+  f.build(t);
+}
+
 function updateChartLabels(lang) {
   const t = i18n[lang];
 
@@ -399,8 +665,19 @@ function updateChartLabels(lang) {
     Plotly.relayout('cea-price-chart', {
       'title.text': t.ceaPriceTrend,
       'yaxis.title.text': t.priceUnit,
+      'yaxis2.title': t.volumeUnit,
     });
+    // Update volume trace names
+    const volNames = [t.volListed, t.volBlock, t.volTotal];
+    const el = document.getElementById('cea-price-chart');
+    if (el.data) {
+      const nYears = el.data.length - 3;
+      volNames.forEach((nm, i) => { if (nYears + i < el.data.length) Plotly.restyle('cea-price-chart', { name: nm }, [nYears + i]); });
+    }
   }
+  // Update filter labels
+  if (ceaPriceFilter) ceaPriceFilter.updateLabels(t);
+  if (boxFilter) boxFilter.updateLabels(t);
 
   // Candlestick
   if (document.getElementById('cea-candlestick-chart').data) {
