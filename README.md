@@ -2,9 +2,11 @@
 
 MCP server for China's national carbon market (CEA + CCER) trading data — with interactive dashboard, data query, and export tools.
 
-![Dashboard Preview](https://img.shields.io/badge/dashboard-interactive-blue)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-brightgreen)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
+![MCP](https://img.shields.io/badge/MCP-compatible-blue)
+
+> **[Live Dashboard Demo](https://jin-z-pop.github.io/china-ets-mcp/)** — Click to explore China ETS data interactively. No installation required.
 
 ## Features
 
