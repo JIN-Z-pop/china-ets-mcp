@@ -26,9 +26,15 @@ MCP server for China's national carbon market (CEA + CCER) trading data — with
 
 ### 1. Install
 
+**Recommended** (auto-manages Python version):
 ```bash
 git clone https://github.com/JIN-Z-pop/china-ets-mcp.git
 cd china-ets-mcp
+uv sync
+```
+
+Or with pip (requires Python 3.11+):
+```bash
 pip install -e .
 ```
 
@@ -45,13 +51,13 @@ unzip data.db.zip -d data/
 ### 3. View Dashboard (No MCP Required)
 
 ```bash
-china-ets-dashboard
+uv run china-ets-dashboard
 ```
 
-Or without installing:
+Or with pip install:
 
 ```bash
-python -m china_ets_mcp.cli
+china-ets-dashboard
 ```
 
 This generates an interactive HTML dashboard and opens it in your browser.
