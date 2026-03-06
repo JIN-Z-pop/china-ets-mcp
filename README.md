@@ -155,6 +155,12 @@ pytest
 
 Trading data is updated periodically via GitHub Releases. Check the [Releases page](https://github.com/JIN-Z-pop/china-ets-mcp/releases) for the latest data.
 
+## Disclaimer
+
+This tool is provided for research and educational purposes only. The authors make no warranties regarding accuracy, completeness, or fitness for any particular purpose, and accept no liability for any loss or damage arising from its use. Use of this tool is entirely at your own risk.
+
+本工具仅供研究与教育目的使用。作者不对其准确性、完整性或特定用途的适用性作任何保证，亦不对因使用本工具而产生的任何损失或损害承担责任。使用本工具的风险由用户自行承担。
+
 ## License
 
 [MIT](LICENSE) - JIN-Z-pop and his merry AI brothers
