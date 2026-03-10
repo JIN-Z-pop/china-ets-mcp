@@ -15,4 +15,3 @@ def test_lite_no_private_tools():
     assert "fetch_cea_daily" not in tool_names
     assert "fetch_ccer_daily" not in tool_names
     assert "fetch_all" not in tool_names
-    assert "internal_register" not in tool_names

@@ -9,18 +9,3 @@ dist/
 build/
 .venv/
 
-# Project management files (local only — DO NOT publish)
-PROJECT_PLAN.md
-PROJECT_STATUS.md
-PROJECT_HISTORY.md
-CHANGELOG.md
-CLONE_INSTRUCTIONS.md
-SECURITY_AUDIT.md
-docs/plans/
-scripts/
-src/china_ets_mcp/scheduler/
-src/china_ets_mcp/server.py
-src/china_ets_mcp/tools/fetcher_*.py
-src/china_ets_mcp/tools/internal_sync.py
-tests/test_fetcher_*.py
-tests/test_server.py
