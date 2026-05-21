@@ -9,3 +9,22 @@ dist/
 build/
 .venv/
 
+# === 非公開: dashboard更新に不要なファイル (金博士様 directive 2026-05-22) ===
+# 原則: dashboard公開に必要な最低限 (コード/DB/dashboard/README) のみ公開
+# README.md以外のMDファイルは非公開
+*.md
+!README.md
+# 研究論文・GIS・geocoding (commit 75f57a3 混入レイヤー)
+paper/
+qgis/
+scripts/generate_figure3.py
+scripts/geocode_baidu.py
+scripts/geocode_by_name.py
+scripts/geocode_entities.py
+scripts/migrate_kets_to_godseye.py
+# 内部管理文書・作業ディレクトリ・認証情報
+docs/plans/
+config/
+/china_ets.db
+/china_ets_backup.db
+
