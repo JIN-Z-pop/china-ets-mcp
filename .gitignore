@@ -29,4 +29,6 @@ config/
 /china_ets_backup.db
 # 金博士様の私的研究業務パスがハードコードされた一回限りツール (DD#3408判定 2026-08-16)
 scripts/import_kets.py
+# cron自動実行ログ (DD#3408 恒久配線 2026-08-17)
+logs/
 
