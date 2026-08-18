@@ -16,6 +16,9 @@ from pathlib import Path
 
 DB_PATH = Path.home() / "Desktop" / "china-ets-mcp" / "data" / "china_ets.db"
 THRESHOLDS = {"CEA": 3.0, "CCER": 10.0}
+# 毎朝運用のALERT監視は「この日以降の新規trigger」を数える。
+# 全履歴(2021-07~)のtrigger累計は歴史的変動の蓄積であり、監視対象と混同しない。
+MONITORING_BASELINE = "2026-08-16"
 
 DDL = """
 CREATE TABLE IF NOT EXISTS price_anomaly_log (
@@ -79,6 +82,21 @@ def main():
         n = detect(conn, market, backfill=args.backfill)
         print(f"{market}: {n} new rows inserted")
     conn.commit()
+
+    print("\n=== ALERT summary (母集団を明記) ===")
+    cur = conn.execute(
+        "SELECT COUNT(*) FROM price_anomaly_log WHERE triggered=1 AND date >= ?",
+        (MONITORING_BASELINE,),
+    )
+    new_count = cur.fetchone()[0]
+    print(f"  [監視対象] 恒久配線({MONITORING_BASELINE})以降の新規trigger = {new_count}件")
+    cur = conn.execute(
+        "SELECT market, COUNT(*) FROM price_anomaly_log WHERE triggered=1 GROUP BY market"
+    )
+    per_market = dict(cur.fetchall())
+    total = sum(per_market.values())
+    breakdown = " / ".join(f"{m} {n}" for m, n in sorted(per_market.items()))
+    print(f"  [歴史累計] 全履歴trigger = {total}件 ({breakdown}) — 監視対象と混同しない")
 
     cur = conn.execute(
         "SELECT market, date, metric_value, threshold FROM price_anomaly_log WHERE triggered=1 ORDER BY date DESC LIMIT 15"
