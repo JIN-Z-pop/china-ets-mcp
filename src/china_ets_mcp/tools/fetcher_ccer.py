@@ -23,9 +23,14 @@ def extract_trading_data(html_content: str, title: str) -> dict:
     """Extract CCER trading data from report page HTML."""
     data = {
         "date": "",
+        # daily_volume/daily_amount/avg_price の既定0は維持(原典が無取引日に0を明示し、
+        # 統一正本側 load_ccer が (avg_price==0 and vol==0) で no_trade を判定するため)。
         "daily_volume": 0, "daily_amount": 0.0,
         "avg_price": 0.0,
-        "cumulative_volume": 0, "cumulative_amount": 0.0,
+        # 累計2列の既定はNone。原典が累计を載せない日の0代入は偽の事実になる
+        # (2026-08-21 ETS-DB全面精査で188/357行を実測)。欠測はNULLで表す。
+        # 🔴 同一ロジックの兄弟実装: C:\Users\jin_z\ccer_daily_data_collector.py(毎朝の実行体)
+        "cumulative_volume": None, "cumulative_amount": None,
     }
 
     date_match = re.search(r"(\d{4})年(\d{1,2})月(\d{1,2})日", title)
