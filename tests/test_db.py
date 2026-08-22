@@ -34,7 +34,7 @@ def test_insert_cea_record(db):
         "listed_volume": 100000, "listed_amount": 9050000.0,
         "block_volume": 50000, "block_amount": 4525000.0,
         "total_volume": 150000, "total_amount": 13575000.0,
-        "cumulative_volume": 800000000, "cumulative_amount": 50000000000.0,
+        "cum_volume_reported": 800000000, "cum_amount_reported": 50000000000.0,
     }
     inserted = db.insert_cea(record)
     assert inserted == 1
@@ -63,7 +63,7 @@ def test_query_cea_date_range(db):
             "listed_volume": 100000, "listed_amount": 9000000.0,
             "block_volume": 0, "block_amount": 0.0,
             "total_volume": 100000, "total_amount": 9000000.0,
-            "cumulative_volume": 800000000, "cumulative_amount": 50000000000.0,
+            "cum_volume_reported": 800000000, "cum_amount_reported": 50000000000.0,
         })
     results = db.query_cea("2025-01-01", "2025-01-02")
     assert len(results) == 2
@@ -78,7 +78,7 @@ def test_get_latest_cea_date(db):
         "listed_volume": 100000, "listed_amount": 9000000.0,
         "block_volume": 0, "block_amount": 0.0,
         "total_volume": 100000, "total_amount": 9000000.0,
-        "cumulative_volume": 800000000, "cumulative_amount": 50000000000.0,
+        "cum_volume_reported": 800000000, "cum_amount_reported": 50000000000.0,
     })
     assert db.get_latest_date("cea") == "2025-06-15"
 
@@ -99,7 +99,7 @@ def test_get_cea_summary(db):
         "listed_volume": 100000, "listed_amount": 9200000.0,
         "block_volume": 0, "block_amount": 0.0,
         "total_volume": 100000, "total_amount": 9200000.0,
-        "cumulative_volume": 800000000, "cumulative_amount": 50000000000.0,
+        "cum_volume_reported": 800000000, "cum_amount_reported": 50000000000.0,
     })
     summary = db.get_cea_summary()
     assert summary["total_trading_days"] == 1
