@@ -15,8 +15,15 @@ CREATE TABLE IF NOT EXISTS cea_daily (
     total_amount REAL,
     cumulative_volume INTEGER,
     cumulative_amount REAL,
-    fetched_at TEXT DEFAULT CURRENT_TIMESTAMP
+    fetched_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    cum_volume_reported INTEGER,
+    cum_amount_reported REAL,
+    cum_volume_derived INTEGER,
+    cum_amount_derived REAL
 );
+-- cea_daily 累計列の列分離(2026-08-22): cumulative_* は出所混成(原典公表値×日次積み上げ)のため
+-- 非推奨・凍結。原典公表値=cum_*_reported / 日次total_*の全史累積=cum_*_derived。
+-- 列順は既存DBへのALTER TABLE ADD COLUMN(末尾追加)と一致させている。
 
 CREATE TABLE IF NOT EXISTS ccer_daily (
     date TEXT PRIMARY KEY,

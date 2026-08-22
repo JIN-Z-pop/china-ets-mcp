@@ -35,7 +35,9 @@ def extract_trading_data(html_content: str, date_str: str) -> dict | None:
         "listed_volume": 0, "listed_amount": 0.0,
         "block_volume": 0, "block_amount": 0.0,
         "total_volume": 0, "total_amount": 0.0,
-        "cumulative_volume": 0, "cumulative_amount": 0.0,
+        # 列分離(2026-08-22): 原典公表値は cum_*_reported へ。既定はNone=原典が累计を
+        # 載せない日に偽のゼロを作らない(CCER側と同型是正)。
+        "cum_volume_reported": None, "cum_amount_reported": None,
     }
 
     patterns = {
@@ -47,8 +49,8 @@ def extract_trading_data(html_content: str, date_str: str) -> dict | None:
         "listed_amount": (r"挂牌协议交易.*?成交额[：:\s]*([0-9,.]+)\s*元", lambda x: float(x.replace(",", ""))),
         "block_volume": (r"大宗协议交易成交量[：:\s]*([0-9,]+)\s*吨", lambda x: int(x.replace(",", ""))),
         "block_amount": (r"大宗协议交易.*?成交额[：:\s]*([0-9,.]+)\s*元", lambda x: float(x.replace(",", ""))),
-        "cumulative_volume": (r"累计成交量[：:\s]*([0-9,]+)\s*吨", lambda x: int(x.replace(",", ""))),
-        "cumulative_amount": (r"累计成交额[：:\s]*([0-9,.]+)\s*元", lambda x: float(x.replace(",", ""))),
+        "cum_volume_reported": (r"累计成交量[：:\s]*([0-9,]+)\s*吨", lambda x: int(x.replace(",", ""))),
+        "cum_amount_reported": (r"累计成交额[：:\s]*([0-9,.]+)\s*元", lambda x: float(x.replace(",", ""))),
     }
 
     for key, (pattern, converter) in patterns.items():

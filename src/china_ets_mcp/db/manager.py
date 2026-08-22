@@ -37,14 +37,14 @@ class DBManager:
                     """INSERT INTO cea_daily
                     (date, opening_price, high_price, low_price, closing_price,
                      listed_volume, listed_amount, block_volume, block_amount,
-                     total_volume, total_amount, cumulative_volume, cumulative_amount)
+                     total_volume, total_amount, cum_volume_reported, cum_amount_reported)
                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                     (record["date"], record["opening_price"], record["high_price"],
                      record["low_price"], record["closing_price"],
                      record["listed_volume"], record["listed_amount"],
                      record["block_volume"], record["block_amount"],
                      record["total_volume"], record["total_amount"],
-                     record["cumulative_volume"], record["cumulative_amount"]),
+                     record["cum_volume_reported"], record["cum_amount_reported"]),
                 )
                 return 1
             except sqlite3.IntegrityError:
