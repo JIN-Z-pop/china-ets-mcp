@@ -21,7 +21,7 @@ def db_with_data():
             "listed_volume": 100000, "listed_amount": 9100000.0,
             "block_volume": 50000, "block_amount": 4550000.0,
             "total_volume": 150000, "total_amount": 13650000.0,
-            "cumulative_volume": 800000000, "cumulative_amount": 50000000000.0,
+            "cum_volume_reported": 800000000, "cum_amount_reported": 50000000000.0,
         })
     yield db
     gc.collect()

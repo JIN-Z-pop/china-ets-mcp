@@ -22,8 +22,8 @@ def db_with_data():
             "listed_volume": 100000 * i, "listed_amount": 9100000.0 * i,
             "block_volume": 50000 * i, "block_amount": 4550000.0 * i,
             "total_volume": 150000 * i, "total_amount": 13650000.0 * i,
-            "cumulative_volume": 800000000 + 150000 * i,
-            "cumulative_amount": 50000000000.0 + 13650000.0 * i,
+            "cum_volume_reported": 800000000 + 150000 * i,
+            "cum_amount_reported": 50000000000.0 + 13650000.0 * i,
         })
     for i in range(1, 4):
         db.insert_ccer({

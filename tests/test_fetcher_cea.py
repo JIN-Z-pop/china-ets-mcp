@@ -25,7 +25,7 @@ def test_extract_trading_data_full():
     assert data["opening_price"] == 52.19
     assert data["listed_volume"] == 1234
     assert data["block_volume"] == 5000
-    assert data["cumulative_volume"] == 820000000
+    assert data["cum_volume_reported"] == 820000000
 
 
 def test_extract_trading_data_no_price():
