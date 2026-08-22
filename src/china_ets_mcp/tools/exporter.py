@@ -6,7 +6,10 @@ from ..db.manager import DBManager
 CEA_FIELDS = [
     "date", "opening_price", "high_price", "low_price", "closing_price",
     "listed_volume", "listed_amount", "block_volume", "block_amount",
-    "total_volume", "total_amount", "cumulative_volume", "cumulative_amount",
+    "total_volume", "total_amount",
+    # 列分離(2026-08-22): reported=原典公表値(〜2025-12-24・以降空欄) / derived=日次積算の全史累積。
+    # 旧cumulative_*(出所混成)は同日DROP済み。
+    "cum_volume_reported", "cum_amount_reported", "cum_volume_derived", "cum_amount_derived",
 ]
 
 CCER_FIELDS = [

@@ -38,6 +38,11 @@ def extract_trading_data(html_content: str, title: str) -> dict:
         y, m, d = date_match.groups()
         data["date"] = f"{y}-{m.zfill(2)}-{d.zfill(2)}"
 
+    # Strip HTML tags so label/number separators like 成交量</span>224,348吨
+    # don't break the \s* separators below (2026-06-08 224kt parse-fail fix。
+    # 2026-08-22: 兄弟実装(毎朝collector)にのみ入っていた修正を対称移植=drift解消)
+    html_content = re.sub(r"<[^>]+>", "", html_content)
+
     patterns = {
         "daily_volume": (r"(?<!累计)成交量\s*([0-9,]+)\s*吨", lambda x: int(x.replace(",", ""))),
         "daily_amount": (r"(?<!累计)成交额\s*([0-9,.]+)\s*元", lambda x: float(x.replace(",", ""))),
