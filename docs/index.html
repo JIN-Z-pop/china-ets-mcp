@@ -89,7 +89,8 @@ body { font-family: 'Segoe UI', sans-serif; background: #0f1923; color: #e0e0e0;
     <strong id="ds-title"></strong><br>
     <span id="ds-cea"></span><br>
     <span id="ds-ccer"></span><br>
-    <span id="ds-disclaimer" style="color:#e53e3e;font-size:0.8em;"></span>
+    <span id="ds-disclaimer" style="color:#e53e3e;font-size:0.8em;"></span><br>
+    <span id="ds-cumnote" style="font-size:0.8em;"></span>
   </div>
   china-ets-mcp | JIN-Z-pop and his merry AI brothers | Plotly.js
 </div>
@@ -99,7 +100,7 @@ body { font-family: 'Segoe UI', sans-serif; background: #0f1923; color: #e0e0e0;
 const i18n = {
   en: {
     title: 'China Carbon Market Dashboard',
-    subtitle: 'China Carbon Market Dashboard | Generated: 2026-08-22 10:16:08',
+    subtitle: 'China Carbon Market Dashboard | Generated: 2026-08-22 10:32:02',
     ceaLatestPrice: 'CEA Latest Price',
     ceaTradingDays: 'CEA Trading Days',
     ceaPriceRange: 'CEA Price Range',
@@ -122,6 +123,7 @@ const i18n = {
     ceaSource: 'CEA: CNEEEX (2021-2025/12) / carbonmarket.cn (2025/12-)',
     ccerSource: 'CCER: Beijing Green Exchange (ccer.com.cn)',
     disclaimer: 'This dashboard is for research purposes only. Data accuracy is not guaranteed.',
+    cumNote: 'Cumulative figures are the running sum of daily trading volumes (definition unified on 2026-08-22). They differ from the officially published cumulative totals shown before 2025-12-24 (difference up to ~0.86 Mt).',
     filterAll: 'All', filterNone: 'None', filterReset: 'Reset',
     filterGrpAll: 'all', filterGrpNone: 'none',
     grpPrice: 'Price', grpVolume: 'Volume',
@@ -129,7 +131,7 @@ const i18n = {
   },
   cn: {
     title: '中国碳市场仪表盘',
-    subtitle: '中国碳市场仪表盘 | 生成时间: 2026-08-22 10:16:08',
+    subtitle: '中国碳市场仪表盘 | 生成时间: 2026-08-22 10:32:02',
     ceaLatestPrice: 'CEA 最新收盘价',
     ceaTradingDays: 'CEA 交易日数',
     ceaPriceRange: 'CEA 价格范围',
@@ -152,6 +154,7 @@ const i18n = {
     ceaSource: 'CEA: 上海环境能源交易所 (2021-2025/12) / carbonmarket.cn (2025/12-)',
     ccerSource: 'CCER: 北京绿色交易所 (ccer.com.cn)',
     disclaimer: '本仪表盘仅供研究参考，数据准确性不做保证。',
+    cumNote: '累计数值为每日成交量的连续累加序列（2026-08-22起统一口径）。与2025-12-24之前显示的官方公布累计值统计口径不同（差异最大约86万吨）。',
     filterAll: '全选', filterNone: '全取消', filterReset: '重置',
     filterGrpAll: '全选', filterGrpNone: '取消',
     grpPrice: '价格', grpVolume: '成交量',
@@ -159,7 +162,7 @@ const i18n = {
   },
   ja: {
     title: '中国炭素市場ダッシュボード',
-    subtitle: '中国炭素市場ダッシュボード | 生成日時: 2026-08-22 10:16:08',
+    subtitle: '中国炭素市場ダッシュボード | 生成日時: 2026-08-22 10:32:02',
     ceaLatestPrice: 'CEA 最新終値',
     ceaTradingDays: 'CEA 取引日数',
     ceaPriceRange: 'CEA 価格レンジ',
@@ -182,6 +185,7 @@ const i18n = {
     ceaSource: 'CEA: 上海環境エネルギー取引所 (2021-2025/12) / carbonmarket.cn (2025/12-)',
     ccerSource: 'CCER: 北京グリーン取引所 (ccer.com.cn)',
     disclaimer: '本ダッシュボードは研究目的です。データの正確性を保証するものではありません。',
+    cumNote: '累計値は日次成交量の積算系列です（2026-08-22に定義統一）。2025-12-24以前に表示していた原典公表の累計とは集計定義が異なります（差は最大約86万トン）。',
     filterAll: '全選択', filterNone: '全解除', filterReset: 'クリア',
     filterGrpAll: '全', filterGrpNone: '解除',
     grpPrice: '価格', grpVolume: '出来高',
@@ -189,7 +193,7 @@ const i18n = {
   },
   ko: {
     title: '중국 탄소시장 대시보드',
-    subtitle: '중국 탄소시장 대시보드 | 생성일시: 2026-08-22 10:16:08',
+    subtitle: '중국 탄소시장 대시보드 | 생성일시: 2026-08-22 10:32:02',
     ceaLatestPrice: 'CEA 최신 종가',
     ceaTradingDays: 'CEA 거래일수',
     ceaPriceRange: 'CEA 가격 범위',
@@ -212,6 +216,7 @@ const i18n = {
     ceaSource: 'CEA: 상하이환경에너지거래소 (2021-2025/12) / carbonmarket.cn (2025/12-)',
     ccerSource: 'CCER: 베이징녹색거래소 (ccer.com.cn)',
     disclaimer: '본 대시보드는 연구 목적입니다. 데이터 정확성을 보증하지 않습니다.',
+    cumNote: '누적 수치는 일일 거래량의 누적 합산 계열입니다(2026-08-22 정의 통일). 2025-12-24 이전에 표시되던 공식 발표 누적치와는 집계 기준이 다릅니다(차이 최대 약 86만 톤).',
     filterAll: '전체', filterNone: '해제', filterReset: '초기화',
     filterGrpAll: '전체', filterGrpNone: '해제',
     grpPrice: '가격', grpVolume: '거래량',
@@ -729,6 +734,7 @@ function switchLang(lang) {
   document.getElementById('ds-cea').textContent = t.ceaSource;
   document.getElementById('ds-ccer').textContent = t.ccerSource;
   document.getElementById('ds-disclaimer').textContent = t.disclaimer;
+  document.getElementById('ds-cumnote').textContent = t.cumNote;
   renderCards(lang);
   renderCharts(lang);
   try { localStorage.setItem('ets-dashboard-lang', lang); } catch(e) {}
