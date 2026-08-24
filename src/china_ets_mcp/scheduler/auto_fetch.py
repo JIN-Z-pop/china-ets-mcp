@@ -1,3 +1,4 @@
+# [RETIRED 2026-08-24 R-001] superseded by the unified morning pipeline (see repo history)
 """Standalone auto-fetch script for Windows Task Scheduler (05:00 daily)."""
 import os
 import sys
