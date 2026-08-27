@@ -9,7 +9,7 @@ dist/
 build/
 .venv/
 
-# === 非公開: dashboard更新に不要なファイル (金博士様 directive 2026-05-22) ===
+# === 非公開: dashboard更新に不要なファイル (2026-05-22) ===
 # 原則: dashboard公開に必要な最低限 (コード/DB/dashboard/README) のみ公開
 # README.md以外のMDファイルは非公開
 *.md
@@ -27,9 +27,9 @@ docs/plans/
 config/
 /china_ets.db
 /china_ets_backup.db
-# 金博士様の私的研究業務パスがハードコードされた一回限りツール (DD#3408判定 2026-08-16)
+# 個人の作業パスがハードコードされた一回限りツール (2026-08-16)
 scripts/import_kets.py
-# cron自動実行ログ (DD#3408 恒久配線 2026-08-17)
+# cron自動実行ログ (2026-08-17)
 logs/
 # local AI-assistant work directories (not part of the published dataset)
 .claude-worktrees/
