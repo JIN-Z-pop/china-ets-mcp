@@ -71,6 +71,10 @@ FORMULAS = {
     "daily_return_pct_abs_ccer": "abs(daily_return_pct) > 10.00",
     "listed_volume_z": "listed_volume_z(window=直近60有効観測・当日を除く・0/NULL除外・pstdev) > 1.99",
     "block_volume_ratio_n20": "block_volume_ratio_n20 > 3.45",
+    # 複合ルール(2026-08-31 導入)。単軸は基準率26.5%(年約64日)で警報疲れが
+    # 確実なため、実運用のALERTは「同日に3軸以上が同時発火」を採る。整数countのため
+    # 「> 2.50」は「3軸以上」と同値(閾値machineryを>で統一したまま表現するための書き方)。
+    "axes_fired_count": "axes_fired_count > 2.50 (整数countのため「3軸以上」と同値・CEA 4軸中)",
 }
 # vにabsを適用するmetric(=キー名に_absが付くもの)。それ以外は生値がそのまま左辺(非負構造
 # または片側判定のため)。
@@ -81,6 +85,27 @@ THRESHOLDS_METRICS = {
     ("CCER", "daily_return_pct_abs_ccer"): 10.00,
     ("CEA", "listed_volume_z"): 1.99,
     ("CEA", "block_volume_ratio_n20"): 3.45,
+    ("CEA", "axes_fired_count"): 2.50,
+}
+
+# CEAの単軸metric(複合ルールの構成要素)。axes_fired_countはこの4軸のみを数える。
+CEA_AXIS_METRICS = (
+    "intraday_range_pct",
+    "open_gap_pct_abs",
+    "listed_volume_z",
+    "block_volume_ratio_n20",
+)
+
+# 非対象範囲の明示(2026-08-31)。
+# CCERの原典(ccer.com.cn)はavg_price/daily_volumeのみでOHLC列を持たないため、
+# 日中レンジ・寄りギャップは「値が無い」のではなく「定義上いつまでも計算できない」。
+# したがってCCERに複合(3軸以上)ルールは構造上到達不能=適用しない。
+NON_COVERAGE = {
+    "CCER": [
+        "intraday_range_pct: 原典にOHLC列が存在せず恒久的に評価不能(欠測ではなく定義不能)",
+        "open_gap_pct_abs: 同上(始値が存在しない)",
+        "axes_fired_count: 評価可能軸が1本のみのため「3軸以上」は構造上到達不能=非適用",
+    ],
 }
 
 UPSERT_METRICS_SQL = """
@@ -352,6 +377,42 @@ def compute_ccer_series(ccer_rows, cea_dates_sorted):
     return {"daily_return_pct_abs_ccer": returns}, {"ccer_prev_missing": prev_missing}
 
 
+def compute_composite_series(series_map):
+    """CEA 4軸の同日発火数(axes_fired_count)の系列を作る。
+
+    戻り値=(series, non_evaluable)。
+      series        : [(date, 発火軸数, gap_trading_days, source_fetched_at), ...]
+                      **4軸すべてに値がある日のみ**を対象とする。
+      non_evaluable : 4軸が揃わず判定しなかった日数(数字層で分離して報告する=#136)。
+
+    「揃わない日を0軸として数える」と、窓不足(listed_volume_zは直近60観測・
+    block_volume_ratio_n20は20観測が必要)の初期日が『異常なし』に化けるため採らない。
+    判定しなかった日は triggered=0 ではなく“対象外”として数える。
+    """
+    per_date = {}
+    for metric_name in CEA_AXIS_METRICS:
+        threshold = THRESHOLDS_METRICS[("CEA", metric_name)]
+        for d, val, gtd, fa in series_map[("CEA", metric_name)]:
+            v = compute_v(metric_name, val)
+            slot = per_date.setdefault(d, {"fired": 0, "n": 0, "gtd": gtd, "fa": fa})
+            slot["n"] += 1
+            slot["fired"] += 1 if v > threshold else 0
+            # source_fetched_atは同一日で軸間一致する想定だが、保守的に最も新しい方を採る
+            # (upsert側が source_fetched_at の新しさで上書き可否を決めるため)。
+            if fa > slot["fa"]:
+                slot["fa"] = fa
+
+    n_axes = len(CEA_AXIS_METRICS)
+    series, non_evaluable = [], 0
+    for d in sorted(per_date):
+        slot = per_date[d]
+        if slot["n"] < n_axes:
+            non_evaluable += 1
+            continue
+        series.append((d, float(slot["fired"]), slot["gtd"], slot["fa"]))
+    return series, non_evaluable
+
+
 def detect_metrics(conn, backfill=False):
     """5指標の多軸検知をprice_anomaly_metricsへupsertする。戻り値=(更新行数, SKIP件数dict,
     系列dict{(market,metric_name): [...]})。既存price_anomaly_log/detect()には触れない。"""
@@ -374,6 +435,11 @@ def detect_metrics(conn, backfill=False):
         ("CCER", "daily_return_pct_abs_ccer"): ccer_series["daily_return_pct_abs_ccer"],
     }
 
+    # 複合ルール(3軸以上)。単軸4本を計算し終えた後に、その発火数から導出する。
+    composite_series, composite_non_eval = compute_composite_series(series_map)
+    series_map[("CEA", "axes_fired_count")] = composite_series
+    skip_extra = {"axes_fired_count_4軸未揃いにつき判定せず": composite_non_eval}
+
     target_dates = {}
     if not backfill:
         for (market, _metric), series in series_map.items():
@@ -386,7 +452,7 @@ def detect_metrics(conn, backfill=False):
                 continue
             upserted += upsert_metric(conn, market, d, metric_name, val, gtd, fa)
 
-    skip_counts = {**cea_skip, **ccer_skip}
+    skip_counts = {**cea_skip, **ccer_skip, **skip_extra}
     return upserted, skip_counts, series_map
 
 
@@ -429,7 +495,7 @@ def main():
 
     n_metrics, skip_counts, series_map = detect_metrics(conn, backfill=args.backfill)
     conn.commit()
-    print(f"\nmetrics: {n_metrics} rows upserted (5指標・{'backfill' if args.backfill else '直近5件/系列'})")
+    print(f"\nmetrics: {n_metrics} rows upserted (単軸5指標+複合1・{'backfill' if args.backfill else '直近5件/系列'})")
     print("  [走査範囲] " + " / ".join(f"{m}={len(s)}件" for (mk, m), s in series_map.items()))
     print("  [SKIP件数(数字層)] " + " / ".join(f"{k}={v}" for k, v in skip_counts.items()))
 
@@ -474,7 +540,7 @@ def main():
     for r in cur.fetchall():
         print(f"  {r[0]} {r[1]}: {r[2]:+.2f}% (threshold={r[3]}%)")
 
-    print("\n=== metrics ALERT summary (5指標・母集団を明記) ===")
+    print("\n=== metrics ALERT summary (単軸5指標+複合1・母集団を明記) ===")
     cur = conn.execute(
         "SELECT market, metric_name, COUNT(*) FROM price_anomaly_metrics "
         "WHERE triggered=1 GROUP BY market, metric_name ORDER BY market, metric_name"
@@ -488,6 +554,43 @@ def main():
     print("\n=== Recent triggered metrics ===")
     for r in cur.fetchall():
         print(f"  {r[0]} {r[1]} {r[2]}: value={r[3]:+.4f} margin={r[4]:+.4f}")
+
+    # === 実運用ALERT = 複合ルール(3軸以上) ===
+    # 単軸は情報提供に留める(基準率26.5%=年約64日)。行動を促すALERTはこの節のみ。
+    print("\n=== 実運用ALERT: CEA 3軸以上 同時発火 ===")
+    cur = conn.execute(
+        "SELECT COUNT(*) FROM price_anomaly_metrics "
+        "WHERE market='CEA' AND metric_name='axes_fired_count'"
+    )
+    judged = cur.fetchone()[0]
+    cur = conn.execute(
+        "SELECT date, metric_value FROM price_anomaly_metrics "
+        "WHERE market='CEA' AND metric_name='axes_fired_count' AND triggered=1 "
+        "ORDER BY date DESC LIMIT 10"
+    )
+    fired = cur.fetchall()
+    cur = conn.execute(
+        "SELECT COUNT(*) FROM price_anomaly_metrics "
+        "WHERE market='CEA' AND metric_name='axes_fired_count' AND triggered=1"
+    )
+    fired_total = cur.fetchone()[0]
+    rate = fired_total / judged * 100 if judged else 0.0
+    print(f"  [母集団] 判定対象={judged}営業日 (4軸すべてに値がある日のみ) / "
+          f"発火={fired_total}日 = {rate:.2f}%")
+    if fired:
+        for d, v in fired:
+            print(f"    ALERT {d}: {int(v)}軸 同時発火")
+    else:
+        print("    (発火なし)")
+
+    # 非対象範囲: 「ALERT 0件」が何を意味しないかを同じ画面に出す。
+    print("\n=== 非対象範囲 (この検査が答えない問い) ===")
+    print("  ・単軸ALERTは情報提供のみ。行動判断は上の複合ルールで行う")
+    print("  ・複合ルールは4軸が揃った日にのみ成立。窓不足日は0軸ではなく“判定対象外”")
+    for market, items in NON_COVERAGE.items():
+        for line in items:
+            print(f"  ・{market} {line}")
+    print("  ・閾値の妥当性そのもの(凍結値=" + BASELINE_REF + ")は本検査の対象外")
     conn.close()
 
 
