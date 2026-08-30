@@ -23,6 +23,16 @@
 問いに答える。UPDATEはSQLiteのfreelist/未使用ページをゼロ埋めしないため、クエリ層が
 0件でもファイル実体には残りうる(VACUUM未実行だと発生することを実測確認済み)。
 
+追加(CCER prev取違え是正・2026-08-30): 旧detect()はCCERの疎らな行同士を隣接比較して
+いたため、gap_trading_days>1(非日次)の行を誤って日次騰落率として判定していた。
+  (a) 前向き: detect()がgap>1の行をtriggered=0+notes"非日次"で挿入すること
+      (実データの既知ケース2025-03-07・gap=268で検証・CEAは無変更であることも確認)。
+  (b) 反対の答え: gap==1の通常行は従来どおり判定されること(notesに非日次が付かない)。
+  (c) 後ろ向き: backfill_ccer_gap_fix()が「誤って挿入済み」の29行を是正し
+      (triggered変化3行・notesのみ26行)、2回目実行は冪等(0行)であること。
+  (d) サボタージュ: gap判定ロジックを無効化すると(a)が落ちる(検査は壊れたものを落とせる)。
+DELETE禁止・履歴は残す(#136: metric_valueは記録のまま・判定だけ外す)。
+
 非対象(#127): 実データの欠測・カレンダー正本側の網羅性は見ない(凍結節側で確認済み)。
 listed_volume_z/block_volume_ratio_n20の陽性対照は基準2が名指ししていないため強くは
 主張しない(自然な結果として triggered=1/0 になることのみ添えて確認)。
@@ -71,6 +81,20 @@ def _make_test_db(real_db_path):
 
 def _log_counts(conn):
     return conn.execute("SELECT COUNT(*), SUM(triggered) FROM price_anomaly_log").fetchone()
+
+
+def _make_test_db_no_log(real_db_path):
+    """実DBをコピーし、price_anomaly_metricsに加えprice_anomaly_logも除去した一時DBを
+    返す(detect()の新規挿入ロジックをまっさらな状態から検証するため。実DBのlogは既に
+    CCER prev是正適用後の状態なので、素通りで正しく見えてしまう=#136を避ける)。"""
+    tmp_path = tempfile.mktemp(suffix=".db")
+    shutil.copy(real_db_path, tmp_path)
+    conn = sqlite3.connect(tmp_path)
+    conn.execute("DROP TABLE IF EXISTS price_anomaly_metrics")
+    conn.execute("DROP TABLE IF EXISTS price_anomaly_log")
+    conn.commit()
+    conn.close()
+    return tmp_path
 
 
 def run():
@@ -196,6 +220,107 @@ def run():
     finally:
         Path(test_db_path2).unlink(missing_ok=True)
 
+    # --- CCER prev取違え是正: (a)前向きgap>1判定 (b)前向きgap==1は従来判定 ---
+    # 実データの既知ケース(2025-03-07・gap=268・独立検証3体一致)をそのまま使う
+    # (合成データを作らず実測ケースで検証=n=1逆算ではなく既知の答え合わせ)。
+    test_db_path4 = _make_test_db_no_log(m.DB_PATH)
+    try:
+        conn4 = sqlite3.connect(test_db_path4)
+        conn4.execute(m.DDL)
+        m.detect(conn4, "CEA", backfill=True)
+        m.detect(conn4, "CCER", backfill=True)
+        conn4.commit()
+
+        row_a = conn4.execute(
+            "SELECT triggered, notes FROM price_anomaly_log WHERE market='CCER' AND date='2025-03-07'"
+        ).fetchone()
+        check("(a) 前向き判定: gap>1(2025-03-07・gap=268)はtriggered=0",
+              row_a is not None and row_a[0] == 0, f"row={row_a}")
+        check("(a) 前向き判定: notesに非日次の記載がある",
+              row_a is not None and "非日次" in (row_a[1] or ""), f"notes={row_a[1] if row_a else None}")
+
+        row_b = conn4.execute(
+            "SELECT triggered, notes FROM price_anomaly_log WHERE market='CCER' AND date='2026-08-11'"
+        ).fetchone()
+        check("(b) 反対の答え: gap==1の通常行(2026-08-11)は従来どおりtriggered=1",
+              row_b is not None and row_b[0] == 1, f"row={row_b}")
+        check("(b) gap==1の通常行: notesが従来形式(非日次でない)",
+              row_b is not None and "非日次" not in (row_b[1] or ""),
+              f"notes={row_b[1] if row_b else None}")
+
+        cea_count = conn4.execute(
+            "SELECT COUNT(*) FROM price_anomaly_log WHERE market='CEA' AND notes LIKE '%非日次%'"
+        ).fetchone()[0]
+        check("(a) CEAは無変更: 非日次notesを持つCEA行=0", cea_count == 0, f"cea_count={cea_count}")
+
+        conn4.close()
+    finally:
+        Path(test_db_path4).unlink(missing_ok=True)
+
+    # --- (c) 後ろ向きbackfill_ccer_gap_fixの冪等性: 旧ロジック(gap判定なし)相当で
+    # 「間違って挿入された」状態を再現してから是正する(本番運用のシナリオそのもの) ---
+    test_db_path5 = _make_test_db_no_log(m.DB_PATH)
+    try:
+        conn5 = sqlite3.connect(test_db_path5)
+        conn5.execute(m.DDL)
+        original_gap_fn = m.gap_trading_days
+        m.gap_trading_days = lambda *a, **kw: 1  # 旧ロジック相当(gap判定なし)で挿入
+        try:
+            m.detect(conn5, "CEA", backfill=True)
+            m.detect(conn5, "CCER", backfill=True)
+            conn5.commit()
+        finally:
+            m.gap_trading_days = original_gap_fn  # 是正関数自体は本来のgap_trading_daysを使う
+
+        row_before = conn5.execute(
+            "SELECT triggered FROM price_anomaly_log WHERE market='CCER' AND date='2025-03-07'"
+        ).fetchone()
+        check("(c) 是正前提: 旧ロジック挿入では2025-03-07がtriggered=1のまま(誤った状態を再現)",
+              row_before is not None and row_before[0] == 1, f"row_before={row_before}")
+
+        n_fix1, n_trig1, n_notes1 = m.backfill_ccer_gap_fix(conn5)
+        conn5.commit()
+        check("(c) 後ろ向きbackfill: 29行が是正される", n_fix1 == 29, f"n_fix1={n_fix1}")
+        check("(c) 後ろ向きbackfill: うちtriggered変化=3行", n_trig1 == 3, f"n_trig1={n_trig1}")
+        check("(c) 後ろ向きbackfill: うちnotesのみ=26行", n_notes1 == 26, f"n_notes1={n_notes1}")
+
+        row_after = conn5.execute(
+            "SELECT triggered, notes FROM price_anomaly_log WHERE market='CCER' AND date='2025-03-07'"
+        ).fetchone()
+        check("(c) 後ろ向きbackfill後: 2025-03-07がtriggered=0に是正",
+              row_after is not None and row_after[0] == 0, f"row_after={row_after}")
+
+        n_fix2, n_trig2, n_notes2 = m.backfill_ccer_gap_fix(conn5)
+        conn5.commit()
+        check("(c) 後ろ向きbackfill冪等性: 2回目は0行", n_fix2 == 0, f"n_fix2={n_fix2}")
+
+        conn5.close()
+    finally:
+        Path(test_db_path5).unlink(missing_ok=True)
+
+    # --- (d) サボタージュ: 前向き判定のgap判定ロジックを無効化すると(a)が落ちる ---
+    test_db_path6 = _make_test_db_no_log(m.DB_PATH)
+    try:
+        conn6 = sqlite3.connect(test_db_path6)
+        conn6.execute(m.DDL)
+        original_gap_fn2 = m.gap_trading_days
+        m.gap_trading_days = lambda *a, **kw: 1  # 判定を無効化(常にgap=1を返す)
+        try:
+            m.detect(conn6, "CCER", backfill=True)
+            conn6.commit()
+        finally:
+            m.gap_trading_days = original_gap_fn2
+        row_sab = conn6.execute(
+            "SELECT triggered FROM price_anomaly_log WHERE market='CCER' AND date='2025-03-07'"
+        ).fetchone()
+        sabotaged_triggered = row_sab[0] if row_sab else None
+        conn6.close()
+        check("(d) サボタージュ確認: gap判定を無効化すると2025-03-07がtriggered=1に戻る"
+              "(検査は壊れたものを落とせる)",
+              sabotaged_triggered == 1, f"sabotaged_triggered={sabotaged_triggered}")
+    finally:
+        Path(test_db_path6).unlink(missing_ok=True)
+
     # --- 受入基準7: 本番経路(引数なし)が新旧両方を1回で回る(main()を直接実行) ---
     test_db_path3 = _make_test_db(m.DB_PATH)
     try:
@@ -233,7 +358,8 @@ def run():
 
     print(f"\n=== {'ALL PASS' if fails == 0 else f'{fails} FAIL(S)'} "
           f"({total}件・実行アサーション数=checkの呼び出し回数(forループ内反復含む)・"
-          f"対象=受入基準1-4,6,7=detect_metrics/upsert_metric/main統合・"
+          f"対象=受入基準1-4,6,7(detect_metrics/upsert_metric/main統合)+"
+          f"CCER prev是正(a)(b)(c)(d)(detect/backfill_ccer_gap_fix)・"
           f"非対象=実データ欠測とカレンダー正本網羅性は凍結節側で確認済み・対象外) ===")
     return 0 if fails == 0 else 1
 

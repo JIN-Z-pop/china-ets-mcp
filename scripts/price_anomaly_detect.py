@@ -114,19 +114,45 @@ def detect(conn, market, backfill=False):
     threshold = THRESHOLDS[market]
     target_rows = rows if backfill else rows[-5:]
     inserted = 0
+
+    # CCERのみ: _fetch_seriesはavg_price>0で疎らな行を詰めるため、rows[i-1]は暦日で
+    # 隣接するとは限らない(prev取違え是正2026-08-30)。CEA取引日カレンダーを代理とした
+    # gap_trading_daysで「真の日次か」を判定し、非日次ならtriggered=0固定にする。
+    # CEAは無変更(元々cea_daily自身の記録でgapが生じない=A0で自己検証済み)。
+    cea_dates_sorted = None
+    if market == "CCER":
+        cea_dates_sorted = [
+            datetime.date.fromisoformat(r[0])
+            for r in conn.execute("SELECT date FROM cea_daily ORDER BY date").fetchall()
+        ]
+
     for i in range(1, len(rows)):
         date, price = rows[i]
         if not backfill and (date, price) not in target_rows:
             continue
-        prev_price = rows[i - 1][1]
+        prev_date, prev_price = rows[i - 1]
         ret_pct = (price - prev_price) / prev_price * 100
-        triggered = 1 if abs(ret_pct) > threshold else 0
+        notes = f"prev={prev_price} curr={price}"
+
+        if market == "CCER":
+            gtd = gap_trading_days(
+                datetime.date.fromisoformat(prev_date),
+                datetime.date.fromisoformat(date),
+                cea_dates_sorted,
+            )
+            if gtd > 1:
+                triggered = 0
+                notes = f"非日次(gap_trading_days={gtd}・prev={prev_date}): 判定対象外"
+            else:
+                triggered = 1 if abs(ret_pct) > threshold else 0
+        else:
+            triggered = 1 if abs(ret_pct) > threshold else 0
+
         cur = conn.execute(
             """INSERT OR IGNORE INTO price_anomaly_log
                (market, date, metric_name, metric_value, threshold, triggered, notes)
                VALUES (?, ?, 'daily_return_pct', ?, ?, ?, ?)""",
-            (market, date, round(ret_pct, 4), threshold, triggered,
-             f"prev={prev_price} curr={price}"),
+            (market, date, round(ret_pct, 4), threshold, triggered, notes),
         )
         inserted += cur.rowcount
     return inserted
@@ -139,6 +165,60 @@ def gap_trading_days(prev_date, cur_date, cea_dates_sorted):
     lo = bisect.bisect_right(cea_dates_sorted, prev_date)
     hi = bisect.bisect_right(cea_dates_sorted, cur_date)
     return hi - lo
+
+
+CCER_GAP_FIX_MARKER = "是正 2026-08-30: 非日次(gap="
+
+
+def backfill_ccer_gap_fix(conn):
+    """既存price_anomaly_log(CCER)のうち、prev取違え(疎らな行同士の比較)で誤って
+    daily_return_pctとして判定されていた行(gap_trading_days>1)をtriggered=0へ是正する。
+    DELETE禁止・履歴(metric_value/notesの元の文言)は残し、末尾に是正notesを追記する。
+    冪等: CCER_GAP_FIX_MARKERが既にnotesに含まれる行は再更新しない(2回目以降0行)。
+
+    戻り値: (更新行数, うちtriggered変化行数, うちnotesのみ変化行数)。29行全部が
+    「判定対象外」に是正されるが、元々triggered=0だった行はtriggered自体は変わらない
+    (「0にした」行と「判定しなかった」行を同じ数字で語らない・#136)。"""
+    cea_dates_sorted = [
+        datetime.date.fromisoformat(r[0])
+        for r in conn.execute("SELECT date FROM cea_daily ORDER BY date").fetchall()
+    ]
+    ccer_dates = [
+        r[0] for r in conn.execute(
+            "SELECT date FROM ccer_daily WHERE avg_price > 0 ORDER BY date"
+        ).fetchall()
+    ]
+
+    updated = 0
+    triggered_changed = 0
+    for i in range(1, len(ccer_dates)):
+        date_s, prev_date_s = ccer_dates[i], ccer_dates[i - 1]
+        gtd = gap_trading_days(
+            datetime.date.fromisoformat(prev_date_s),
+            datetime.date.fromisoformat(date_s),
+            cea_dates_sorted,
+        )
+        if gtd <= 1:
+            continue
+        row = conn.execute(
+            "SELECT id, triggered, notes FROM price_anomaly_log WHERE market='CCER' AND date=?",
+            (date_s,),
+        ).fetchone()
+        if row is None:
+            continue
+        log_id, old_triggered, notes = row
+        marker = f"{CCER_GAP_FIX_MARKER}{gtd})"
+        if notes and CCER_GAP_FIX_MARKER in notes:
+            continue
+        new_notes = f"{notes} / {marker}" if notes else marker
+        conn.execute(
+            "UPDATE price_anomaly_log SET triggered=0, notes=? WHERE id=?",
+            (new_notes, log_id),
+        )
+        updated += 1
+        if old_triggered != 0:
+            triggered_changed += 1
+    return updated, triggered_changed, updated - triggered_changed
 
 
 def compute_v(metric_name, metric_value):
@@ -322,6 +402,12 @@ def main():
         print(f"{market}: {n} new rows inserted")
     conn.commit()
 
+    # CCER prev取違え是正(既存行の遡及是正・冪等・DELETE禁止)
+    n_gap_fix, n_triggered_changed, n_notes_only = backfill_ccer_gap_fix(conn)
+    conn.commit()
+    print(f"CCER gap fix: {n_gap_fix}行更新(非日次是正) / "
+          f"うちtriggered変化={n_triggered_changed}行・notesのみ={n_notes_only}行")
+
     # --- 多軸指標(price_anomaly_metrics) ---
     conn.execute(DDL_METRICS)
     cols = {r[1] for r in conn.execute("PRAGMA table_info(price_anomaly_metrics)").fetchall()}
@@ -361,6 +447,25 @@ def main():
     total = sum(per_market.values())
     breakdown = " / ".join(f"{m} {n}" for m, n in sorted(per_market.items()))
     print(f"  [歴史累計] 全履歴trigger = {total}件 ({breakdown}) — 監視対象と混同しない")
+
+    # 分母併記(#136): triggered=0には「異常でないと判定した」行と「判定していない
+    # (非日次で対象外)」行が混ざる。市場別に総行数・対象外(非日次)・判定対象・発火を
+    # 分けて出す(CEAは対象外0行=判定分母が総行数と一致することも明示)。
+    for market in ("CEA", "CCER"):
+        cur = conn.execute(
+            "SELECT COUNT(*) FROM price_anomaly_log WHERE market=?", (market,),
+        )
+        total_rows = cur.fetchone()[0]
+        cur = conn.execute(
+            "SELECT COUNT(*) FROM price_anomaly_log WHERE market=? AND notes LIKE '%非日次%'",
+            (market,),
+        )
+        excluded = cur.fetchone()[0]
+        judged = total_rows - excluded
+        fired = per_market.get(market, 0)
+        rate = fired / judged * 100 if judged else 0.0
+        print(f"  [{market} 分母] {total_rows}行中 判定対象={judged}・対象外(非日次)={excluded}・"
+              f"発火={fired}件({rate:.1f}%=判定分母基準)")
 
     cur = conn.execute(
         "SELECT market, date, metric_value, threshold FROM price_anomaly_log WHERE triggered=1 ORDER BY date DESC LIMIT 15"
