@@ -76,9 +76,11 @@ def _log_counts(conn):
 def run():
     m = _load_module()
     fails = 0
+    total = 0
 
     def check(name, ok, detail=""):
-        nonlocal fails
+        nonlocal fails, total
+        total += 1
         print(f"  {'OK' if ok else 'FAIL'}: {name}" + (f" — {detail}" if detail else ""))
         if not ok:
             fails += 1
@@ -230,7 +232,8 @@ def run():
           forbidden_count == 0, f"count={forbidden_count} file={m.DB_PATH}")
 
     print(f"\n=== {'ALL PASS' if fails == 0 else f'{fails} FAIL(S)'} "
-          f"(受入基準1-4,6,7・対象=detect_metrics/upsert_metric/main統合・"
+          f"({total}件・実行アサーション数=checkの呼び出し回数(forループ内反復含む)・"
+          f"対象=受入基準1-4,6,7=detect_metrics/upsert_metric/main統合・"
           f"非対象=実データ欠測とカレンダー正本網羅性は凍結節側で確認済み・対象外) ===")
     return 0 if fails == 0 else 1
 
