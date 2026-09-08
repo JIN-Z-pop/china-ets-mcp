@@ -25,6 +25,7 @@ scripts/migrate_kets_to_godseye.py
 # 内部管理文書・作業ディレクトリ・認証情報
 docs/plans/
 config/
+.security-allowlist.json
 /china_ets.db
 /china_ets_backup.db
 # 個人の作業パスがハードコードされた一回限りツール (2026-08-16)
