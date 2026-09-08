@@ -68,9 +68,9 @@ def main():
     # Send email report
     sender = os.getenv("GMAIL_SENDER")
     app_password = os.getenv("GMAIL_APP_PASSWORD")
-    recipient = os.getenv("GMAIL_RECIPIENT", "jin@iges.or.jp")
 
     if sender and app_password:
+        recipient = os.environ["GMAIL_RECIPIENT"]
         try:
             email_result = send_daily_report(
                 sender, app_password, recipient,

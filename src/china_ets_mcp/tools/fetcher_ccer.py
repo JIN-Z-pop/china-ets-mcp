@@ -29,7 +29,7 @@ def extract_trading_data(html_content: str, title: str) -> dict:
         "avg_price": 0.0,
         # 累計2列の既定はNone。原典が累计を載せない日の0代入は偽の事実になる
         # (2026-08-21 ETS-DB全面精査で188/357行を実測)。欠測はNULLで表す。
-        # 🔴 同一ロジックの兄弟実装: C:\Users\jin_z\ccer_daily_data_collector.py(毎朝の実行体)
+        # Mirror of the daily collector script (kept in sync; see local runbook)
         "cumulative_volume": None, "cumulative_amount": None,
     }
 
@@ -40,7 +40,7 @@ def extract_trading_data(html_content: str, title: str) -> dict:
 
     # Strip HTML tags so label/number separators like 成交量</span>224,348吨
     # don't break the \s* separators below (2026-06-08 224kt parse-fail fix。
-    # 2026-08-22: 兄弟実装(毎朝collector)にのみ入っていた修正を対称移植=drift解消)
+    # 2026-08-22: ported the fix that only the daily collector had (drift resolved)
     html_content = re.sub(r"<[^>]+>", "", html_content)
 
     patterns = {

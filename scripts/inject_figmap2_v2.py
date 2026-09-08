@@ -2,11 +2,18 @@
 figMap2 v2: 業種別省別choropleth切り替え注入スクリプト
 sector_prov_data.json のデータを使い、updatemenusを更新する。
 Baidu APIデータも同じJSON形式で渡せば動作する。
+
+Usage: python inject_figmap2_v2.py --html <path to target HTML file>
 """
+import argparse
 import json, re, shutil
 
+ap = argparse.ArgumentParser()
+ap.add_argument('--html', required=True, help='target HTML file to inject updatemenus into')
+args = ap.parse_args()
+
 DATA_FILE = r'C:\tmp\sector_prov_data.json'
-HTML_FILE = r'C:\Users\jin_z\Desktop\BaiduSyncdisk\0. 研究\10.0 成果\1.0 金のプレゼン\2017‐2026金融勉強会\20260609\中国ETSの発展と展望_v3.html'
+HTML_FILE = args.html
 BAK_FILE  = HTML_FILE + '.bak_v2_inject'
 
 with open(DATA_FILE, encoding='utf-8') as f:
