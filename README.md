@@ -22,6 +22,8 @@ MCP server for China's national carbon market (CEA + CCER) trading data — with
 | **CEA** (Carbon Emission Allowance) | Shanghai Environment and Energy Exchange | 2021-07 ~ present |
 | **CCER** (China Certified Emission Reduction) | CCER Official (ccer.com.cn) | 2024-01 ~ present |
 
+Known gap: 2026-10-13 has no trading row in the upstream data source (confirmed 2026-10-22). Kept as an interior gap; not back-filled from other sources.
+
 ## Quick Start
 
 ### 1. Install
