@@ -19,10 +19,12 @@ MCP server for China's national carbon market (CEA + CCER) trading data — with
 
 | Market | Source | Coverage |
 |--------|--------|----------|
-| **CEA** (Carbon Emission Allowance) | Shanghai Environment and Energy Exchange | 2021-07 ~ present |
+| **CEA** (Carbon Emission Allowance) | Shanghai Environment and Energy Exchange (daily rows since 2025-12-25 are taken from carbonmarket.cn, a public mirror of the exchange's published figures) | 2021-07 ~ present |
 | **CCER** (China Certified Emission Reduction) | CCER Official (ccer.com.cn) | 2024-01 ~ present |
 
 Known gap: 2026-10-13 has no trading row in the upstream data source (confirmed 2026-10-22). Kept as an interior gap; not back-filled from other sources.
+
+Known stall: the upstream page has not published rows after 2026-10-16 (confirmed 2026-10-24). Trading itself continued (the exchange's daily bulletin, as republished by Sina Finance, reports a 2026-10-21 composite close of 98.15 CNY/t). Rows after 2026-10-16 will be added if and when the upstream publishes them; they are not filled from other sources.
 
 ## Quick Start
 
