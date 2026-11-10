@@ -108,17 +108,26 @@ NON_COVERAGE = {
     ],
 }
 
-UPSERT_METRICS_SQL = """
+# price_anomaly_metricsへの登録は「更新→無ければ挿入」の2段にする。
+# AUTOINCREMENTの表ではINSERT文を実行するだけで(キー衝突で行が増えなくても)
+# sqlite_sequenceが進む。INSERT ... ON CONFLICT DO UPDATEを毎回実行すると、中身が変わらない
+# 実行でも連番だけが進み、公開DBに中身のない差分が積まれてしまう。
+# 更新はUPDATE(連番に触れない)・挿入は「同じキーが無い時だけ行を選ぶ」形にして、
+# 既存行がある時はINSERT文が行を生まないようにする。既存行を更新する条件は従来と同じ
+# (source_fetched_atが新しい時だけ・等しい時は更新しない)。
+UPDATE_METRICS_SQL = """
+UPDATE price_anomaly_metrics SET
+    margin=?, metric_value=?, threshold=?, triggered=?,
+    formula=?, baseline_ref=?, source_fetched_at=?, gap_trading_days=?
+WHERE market=? AND date=? AND metric_name=? AND ? > source_fetched_at
+"""
+INSERT_METRICS_SQL = """
 INSERT INTO price_anomaly_metrics
     (market, margin, date, metric_name, metric_value, threshold, triggered,
      formula, baseline_ref, source_fetched_at, gap_trading_days)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(market, date, metric_name) DO UPDATE SET
-    margin=excluded.margin, metric_value=excluded.metric_value,
-    threshold=excluded.threshold, triggered=excluded.triggered,
-    formula=excluded.formula, baseline_ref=excluded.baseline_ref,
-    source_fetched_at=excluded.source_fetched_at, gap_trading_days=excluded.gap_trading_days
-WHERE excluded.source_fetched_at > price_anomaly_metrics.source_fetched_at
+SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+WHERE NOT EXISTS (
+    SELECT 1 FROM price_anomaly_metrics WHERE market=? AND date=? AND metric_name=?)
 """
 
 
@@ -173,11 +182,15 @@ def detect(conn, market, backfill=False):
         else:
             triggered = 1 if abs(ret_pct) > threshold else 0
 
+        # 既存行がある時はSELECTが0行になりINSERTが行を生まない(AUTOINCREMENTの連番を
+        # 進めない)。OR IGNOREは残す=制約違反・同時書込の時の「黙ってスキップ」は従来どおり。
         cur = conn.execute(
             """INSERT OR IGNORE INTO price_anomaly_log
                (market, date, metric_name, metric_value, threshold, triggered, notes)
-               VALUES (?, ?, 'daily_return_pct', ?, ?, ?, ?)""",
-            (market, date, round(ret_pct, 4), threshold, triggered, notes),
+               SELECT ?, ?, 'daily_return_pct', ?, ?, ?, ?
+               WHERE NOT EXISTS (
+                   SELECT 1 FROM price_anomaly_log WHERE market=? AND date=?)""",
+            (market, date, round(ret_pct, 4), threshold, triggered, notes, market, date),
         )
         inserted += cur.rowcount
     return inserted
@@ -263,10 +276,23 @@ def upsert_metric(conn, market, date, metric_name, metric_value, gap_td, source_
     v = compute_v(metric_name, metric_value)
     triggered = 1 if v > threshold else 0
     margin = threshold - v
+    margin_r, value_r = round(margin, 6), round(metric_value, 6)
+    formula = FORMULAS[metric_name]
+    # 戻り値=更新または挿入した行数(0か1)。意味は従来のUPSERTと同じ。
+    # ① 既存行があり、格納済みより新しいsource_fetched_atなら更新する。
     cur = conn.execute(
-        UPSERT_METRICS_SQL,
-        (market, round(margin, 6), date, metric_name, round(metric_value, 6), threshold,
-         triggered, FORMULAS[metric_name], BASELINE_REF, source_fetched_at, gap_td),
+        UPDATE_METRICS_SQL,
+        (margin_r, value_r, threshold, triggered, formula, BASELINE_REF,
+         source_fetched_at, gap_td, market, date, metric_name, source_fetched_at),
+    )
+    if cur.rowcount:
+        return cur.rowcount
+    # ② 更新されなかった: 同じキーの行が無い時だけ挿入する(在れば行を生まない)。
+    cur = conn.execute(
+        INSERT_METRICS_SQL,
+        (market, margin_r, date, metric_name, value_r, threshold, triggered,
+         formula, BASELINE_REF, source_fetched_at, gap_td,
+         market, date, metric_name),
     )
     return cur.rowcount
 
