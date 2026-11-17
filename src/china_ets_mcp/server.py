@@ -9,6 +9,7 @@ from .tools.query import query_trading_data as _query, get_market_summary as _su
 from .tools.exporter import export_csv, export_xlsx
 from .tools.dashboard import generate_dashboard as _gen_dashboard
 from .tools.rag_sync import generate_rag_markdown
+from .validation import validate_format, validate_market, validate_output_path
 
 mcp = FastMCP("china-ets-mcp")
 
@@ -65,6 +66,7 @@ def query_trading_data(market: str, start_date: str, end_date: str) -> str:
         start_date: Start date (YYYY-MM-DD)
         end_date: End date (YYYY-MM-DD)
     """
+    validate_market(market)
     db = _get_db()
     data = _query(db, market, start_date, end_date)
     return json.dumps(data, ensure_ascii=False)
@@ -77,6 +79,7 @@ def get_market_summary(market: str = "both") -> str:
     Args:
         market: 'cea', 'ccer', or 'both' (default: 'both')
     """
+    validate_market(market, allow_both=True)
     db = _get_db()
     summary = _summary(db, market)
     return json.dumps(summary, ensure_ascii=False)
@@ -92,6 +95,8 @@ def download_data(market: str, format: str = "csv", start_date: str | None = Non
         start_date: Optional start date filter (YYYY-MM-DD)
         end_date: Optional end date filter (YYYY-MM-DD)
     """
+    validate_market(market)
+    validate_format(format)
     db = _get_db()
     output_dir = _BASE_DIR / "data" / "exports"
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -115,9 +120,10 @@ def generate_dashboard(output_path: str | None = None) -> str:
     Args:
         output_path: Optional custom output path (default: data/dashboard.html)
     """
-    db = _get_db()
     path = output_path or str(_BASE_DIR / "data" / "dashboard.html")
-    result = _gen_dashboard(db, path)
+    resolved = validate_output_path(path, _BASE_DIR / "data")
+    db = _get_db()
+    result = _gen_dashboard(db, str(resolved))
     return json.dumps({"path": result, "status": "generated"})
 
 
@@ -128,6 +134,7 @@ def register_to_rag(market: str = "both") -> str:
     Args:
         market: 'cea', 'ccer', or 'both' (default: 'both')
     """
+    validate_market(market, allow_both=True)
     db = _get_db()
     markdown = generate_rag_markdown(db, market)
     output_path = _BASE_DIR / "data" / "rag_report.md"

@@ -10,32 +10,18 @@ from .db.manager import DBManager
 from .tools.query import query_trading_data as _query, get_market_summary as _summary
 from .tools.exporter import export_csv, export_xlsx
 from .tools.dashboard import generate_dashboard as _gen_dashboard
+from .validation import validate_format, validate_market, validate_output_path
 
 mcp = FastMCP("china-ets-mcp")
 
 _BASE_DIR = Path(__file__).parent.parent.parent
 _DB_PATH = _BASE_DIR / "data" / "china_ets.db"
-_VALID_MARKETS = ("cea", "ccer")
 
 
 def _get_db() -> DBManager:
     db = DBManager(_DB_PATH)
     db.init_db()
     return db
-
-
-def _validate_market(market: str, allow_both: bool = False) -> None:
-    valid = (*_VALID_MARKETS, "both") if allow_both else _VALID_MARKETS
-    if market not in valid:
-        raise ValueError(f"market must be one of {valid}, got '{market}'")
-
-
-def _validate_output_path(path: str) -> Path:
-    resolved = Path(path).resolve()
-    allowed = (_BASE_DIR / "data").resolve()
-    if not str(resolved).startswith(str(allowed)):
-        raise ValueError(f"Output path must be within {allowed}")
-    return resolved
 
 
 @mcp.tool()
@@ -47,7 +33,7 @@ def query_trading_data(market: str, start_date: str, end_date: str) -> str:
         start_date: Start date (YYYY-MM-DD)
         end_date: End date (YYYY-MM-DD)
     """
-    _validate_market(market)
+    validate_market(market)
     db = _get_db()
     data = _query(db, market, start_date, end_date)
     return json.dumps(data, ensure_ascii=False)
@@ -60,7 +46,7 @@ def get_market_summary(market: str = "both") -> str:
     Args:
         market: 'cea', 'ccer', or 'both' (default: 'both')
     """
-    _validate_market(market, allow_both=True)
+    validate_market(market, allow_both=True)
     db = _get_db()
     summary = _summary(db, market)
     return json.dumps(summary, ensure_ascii=False)
@@ -76,7 +62,8 @@ def download_data(market: str, format: str = "csv", start_date: str | None = Non
         start_date: Optional start date filter (YYYY-MM-DD)
         end_date: Optional end date filter (YYYY-MM-DD)
     """
-    _validate_market(market)
+    validate_market(market)
+    validate_format(format)
     db = _get_db()
     output_dir = _BASE_DIR / "data" / "exports"
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -100,10 +87,10 @@ def generate_dashboard(output_path: str | None = None) -> str:
     Args:
         output_path: Optional custom output path (default: data/dashboard.html)
     """
-    db = _get_db()
     path = output_path or str(_BASE_DIR / "data" / "dashboard.html")
-    _validate_output_path(path)
-    result = _gen_dashboard(db, path)
+    resolved = validate_output_path(path, _BASE_DIR / "data")
+    db = _get_db()
+    result = _gen_dashboard(db, str(resolved))
     return json.dumps({"path": result, "status": "generated"})
 
 
