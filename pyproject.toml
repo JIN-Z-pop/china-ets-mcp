@@ -1,6 +1,6 @@
 [project]
 name = "china-ets-mcp"
-version = "1.0.0"
+version = "1.0.1"
 description = "MCP server for China ETS (CEA/CCER) carbon market data — dashboard, query, and export tools"
 readme = "README.md"
 license = "MIT"
