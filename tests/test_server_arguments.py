@@ -7,6 +7,7 @@ fails (i.e. a bad argument is wrongly accepted) can only write inside ``tmp_path
 import hashlib
 import importlib
 import json
+import os
 import shutil
 from pathlib import Path
 
@@ -92,6 +93,16 @@ def test_rejects_overwriting_the_database_file(sandbox):
     assert _sha256(replica) == before
 
 
+def test_rejects_alternate_data_stream_on_the_database(sandbox):
+    mod, _, replica = sandbox
+    before = _sha256(replica)
+    stream = str(replica) + ":x.html"
+    with pytest.raises(ValueError, match="alternate data stream"):
+        _tool(mod, "generate_dashboard")(output_path=stream)
+    assert not os.path.exists(stream)  # no hidden stream (Windows) and no stray file (elsewhere)
+    assert _sha256(replica) == before
+
+
 def test_rejects_unknown_export_format(sandbox):
     mod, base, _ = sandbox
     with pytest.raises(ValueError, match="format must be one of"):
@@ -127,6 +138,14 @@ def test_accepts_default_dashboard(sandbox):
     assert Path(result["path"]).resolve() == expected
     assert result["status"] == "generated"
     assert expected.exists()
+
+
+def test_accepts_absolute_html_path_inside_data(sandbox):
+    mod, base, _ = sandbox
+    target = (base / "data" / "custom.html").resolve()
+    assert target.is_absolute()  # on Windows this path carries a drive letter, i.e. a ':'
+    _tool(mod, "generate_dashboard")(output_path=str(target))
+    assert target.exists()
 
 
 def test_accepts_uppercase_html_suffix_in_a_subdirectory(sandbox):

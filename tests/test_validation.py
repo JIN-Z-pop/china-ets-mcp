@@ -1,4 +1,6 @@
 """Unit tests for the argument validation shared by both MCP servers."""
+import os
+
 import pytest
 
 from china_ets_mcp.validation import validate_format, validate_market, validate_output_path
@@ -74,6 +76,32 @@ def test_rejects_parent_traversal_that_leaves_allowed_dir(tmp_path):
     allowed = tmp_path / "data"
     with pytest.raises(ValueError, match="Output path must be within"):
         validate_output_path(str(allowed / ".." / "outside" / "a.html"), allowed)
+
+
+def test_rejects_alternate_data_stream_name(tmp_path):
+    allowed = tmp_path / "data"
+    with pytest.raises(ValueError, match="alternate data stream"):
+        validate_output_path(str(allowed / "china_ets.db:x.html"), allowed)
+
+
+def test_rejects_colon_in_a_subdirectory_name(tmp_path):
+    allowed = tmp_path / "data"
+    with pytest.raises(ValueError, match="alternate data stream"):
+        validate_output_path(str(allowed / "reports:x" / "a.html"), allowed)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="drive letters exist only on Windows")
+def test_drive_letter_colon_is_not_rejected(tmp_path):
+    allowed = tmp_path / "data"
+    got = validate_output_path(str(allowed / "a.html"), allowed)
+    assert got.drive.endswith(":")  # the absolute path really does contain a ':'
+    assert got == (allowed / "a.html").resolve()
+
+
+def test_colon_above_the_allowed_directory_is_ignored(tmp_path):
+    allowed = tmp_path / "odd:parent" / "data"
+    got = validate_output_path(str(allowed / "a.html"), allowed)
+    assert got.name == "a.html"
 
 
 @pytest.mark.parametrize("name", ["china_ets.db", "dashboard.htm", "dashboard", "notes.json", "x.html.exe"])
